@@ -1,98 +1,122 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useEffect } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { Image } from 'expo-image';
+import { router } from 'expo-router';
+import { Screen } from '@/components/ui/Screen';
+import { colors } from '@/theme/colors';
+import { typography } from '@/theme/typography';
+import { spacing } from '@/theme/spacing';
+import { radius } from '@/theme/radius';
+import { brand } from '@/constants/brand';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+export default function SplashScreenComponent() {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      router.replace('/onboarding/loads');
+    }, 2000); // 2 second display
+    return () => clearTimeout(timer);
+  }, []);
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
   return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
+    <Screen safeArea style={styles.container}>
+      <View style={styles.topArea}>
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>● FLEET CORE SYNC</Text>
+        </View>
+      </View>
+      
+      <View style={styles.centerArea}>
+        <Image 
+          source={brand.logo} 
+          style={styles.logo} 
+          contentFit="contain" 
+        />
+        <Text style={styles.tagline}>{brand.tagline}</Text>
+        
+        <View style={styles.loadingContainer}>
+          <View style={styles.progressLine} />
+          <Text style={styles.loadingText}>Connecting to dispatch{'\n'}hub...</Text>
+        </View>
+      </View>
 
-export default function HomeScreen() {
-  return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
-
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
-
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
-
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
+      <View style={styles.bottomArea}>
+        <Text style={styles.bottomTextMain}>HAUL360 ENTERPRISE  •  v1.0.0</Text>
+        <Text style={styles.bottomTextSub}>Authorized Freight Network Access</Text>
+      </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    backgroundColor: '#EEF2FF', // very light blue/lavender as requested
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.xl,
+  },
+  topArea: {
+    alignItems: 'center',
+    paddingTop: spacing.md,
+  },
+  badge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+  },
+  badgeText: {
+    fontSize: typography.sizes.caption,
+    color: colors.slate,
+    fontWeight: typography.weights.medium as any,
+    letterSpacing: 0.5,
+  },
+  centerArea: {
     flex: 1,
     justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
     alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
   },
-  heroSection: {
+  logo: {
+    width: 240,
+    height: 80,
+    marginBottom: spacing.md,
+  },
+  tagline: {
+    fontSize: typography.sizes.body,
+    color: colors.textSecondary,
+    fontWeight: typography.weights.medium as any,
+    marginBottom: spacing.huge,
+  },
+  loadingContainer: {
     alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
+    width: '100%',
   },
-  title: {
+  progressLine: {
+    width: 60,
+    height: 2,
+    backgroundColor: colors.blue,
+    borderRadius: radius.pill,
+    marginBottom: spacing.md,
+  },
+  loadingText: {
+    fontSize: typography.sizes.bodySmall,
+    color: colors.textSecondary,
     textAlign: 'center',
+    lineHeight: 18,
   },
-  code: {
-    textTransform: 'uppercase',
+  bottomArea: {
+    alignItems: 'center',
+    paddingBottom: spacing.xxl,
   },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
+  bottomTextMain: {
+    fontSize: typography.sizes.caption,
+    color: colors.slate,
+    fontWeight: typography.weights.bold as any,
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  bottomTextSub: {
+    fontSize: typography.sizes.caption,
+    color: colors.slate,
   },
 });
