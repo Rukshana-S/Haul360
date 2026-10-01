@@ -54,8 +54,8 @@ export class AuthService {
       throw error;
     }
 
-    if (!dto.password || dto.password.length < 6) {
-      const error: AppError = new Error('Password must be at least 6 characters long');
+    if (!dto.password || dto.password.length < 8) {
+      const error: AppError = new Error('Password must be at least 8 characters long');
       error.statusCode = 400;
       throw error;
     }
