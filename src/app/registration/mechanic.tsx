@@ -1,24 +1,41 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Switch } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  Switch,
+  TextInput,
+  ActivityIndicator,
+} from 'react-native';
 import { router } from 'expo-router';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/components/ui/Screen';
-import { typography } from '@/theme/typography';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
-import { radius } from '@/theme/radius';
 import { brand } from '@/constants/brand';
+import { authApi, RegisteredUser, ApiError } from '@/services/api';
 
 export default function MechanicRegistrationScreen() {
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [registeredUser, setRegisteredUser] = useState<RegisteredUser | null>(null);
+
   const [form, setForm] = useState({
-    name: '',
-    mobile: '98765 43210',
-    aadhaar: '',
-    pan: '',
-    address: '',
-    landmark: '',
+    name: 'Ramesh Chandra Verma',
+    mobile: '9876543210',
+    email: 'ramesh.verma@example.com',
+    password: '',
+    aadhaar: '4521 8934 1029',
+    pan: 'ABCDE1234F',
+    address: 'Shop 14, Haul360 Commercial Fleet Plaza',
+    landmark: 'NH-48 Km Stone 42, Opposite Toll Post',
     specialization: {
       heavy: true,
       lcv: true,
@@ -29,13 +46,83 @@ export default function MechanicRegistrationScreen() {
   });
 
   const toggleSpec = (key: keyof typeof form.specialization) => {
-    setForm(prev => ({
+    setForm((prev) => ({
       ...prev,
-      specialization: { ...prev.specialization, [key]: !prev.specialization[key] }
+      specialization: { ...prev.specialization, [key]: !prev.specialization[key] },
     }));
   };
 
+  const handleRegister = async () => {
+    if (isSubmitting) return;
+
+    setErrorMessage(null);
+
+    // 1. Client Validation
+    const trimmedName = form.name.trim();
+    if (!trimmedName) {
+      setErrorMessage('Please enter your full legal name.');
+      return;
+    }
+
+    const cleanMobile = form.mobile.replace(/\D/g, '');
+    if (cleanMobile.length < 10) {
+      setErrorMessage('Please enter a valid 10-digit mobile number.');
+      return;
+    }
+
+    if (!form.password || form.password.length < 8) {
+      setErrorMessage('Password must be at least 8 characters long.');
+      return;
+    }
+
+    // Split into first and last name
+    const nameParts = trimmedName.split(/\s+/);
+    const firstName = nameParts[0];
+    const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : undefined;
+
+    setIsSubmitting(true);
+
+    try {
+      // Send ONLY supported authentication fields (No Aadhaar/PAN in this phase)
+      const response = await authApi.register({
+        firstName,
+        lastName,
+        mobile: cleanMobile,
+        email: form.email.trim() || undefined,
+        password: form.password,
+        role: 'mechanic',
+      });
+
+      if (response.success && response.data?.user) {
+        setRegisteredUser(response.data.user);
+        setSubmitted(true);
+      } else {
+        setErrorMessage(response.message || 'Registration failed. Please try again.');
+      }
+    } catch (error: any) {
+      if (error instanceof ApiError) {
+        if (error.statusCode === 409) {
+          setErrorMessage('An account with this mobile number or email already exists.');
+        } else if (error.statusCode === 400) {
+          setErrorMessage(error.message || 'Please check the registration details you entered.');
+        } else if (error.statusCode === 0) {
+          setErrorMessage('Unable to connect to Haul360. Please check your connection and try again.');
+        } else {
+          setErrorMessage(error.message || 'Something went wrong. Please try again.');
+        }
+      } else {
+        setErrorMessage('Unable to connect to Haul360. Please check your connection and try again.');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   if (submitted) {
+    const refCode = registeredUser?.id
+      ? `#H360-REG-${registeredUser.id.slice(-6).toUpperCase()}`
+      : '#H360-REG-84920';
+
     return (
       <Screen safeArea style={styles.container}>
         <View style={styles.header}>
@@ -48,7 +135,11 @@ export default function MechanicRegistrationScreen() {
           </View>
         </View>
 
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.successTop}>
             <View style={styles.shieldIconContainer}>
               <Ionicons name="shield-checkmark" size={48} color={colors.blue} />
@@ -58,7 +149,9 @@ export default function MechanicRegistrationScreen() {
               <Text style={styles.fastTrackText}>FAST-TRACK MANIFEST ACTIVE</Text>
             </View>
             <Text style={styles.successTitle}>Application Submitted Successfully!</Text>
-            <Text style={styles.successSubtitle}>Your fleet documents and profile are being reviewed by Haul360 Verification Desk.</Text>
+            <Text style={styles.successSubtitle}>
+              Your account has been created and your profile is being reviewed by the Haul360 Verification Desk.
+            </Text>
           </View>
 
           <View style={styles.card}>
@@ -68,7 +161,7 @@ export default function MechanicRegistrationScreen() {
                 <Text style={styles.detailsLabel}>Application Reference</Text>
               </View>
               <View style={styles.tagBlue}>
-                <Text style={styles.tagBlueText}>#H360-REG-84920</Text>
+                <Text style={styles.tagBlueText}>{refCode}</Text>
               </View>
             </View>
             <View style={styles.divider} />
@@ -77,7 +170,7 @@ export default function MechanicRegistrationScreen() {
                 <Ionicons name="car-sport-outline" size={16} color={colors.navy} style={{ marginRight: 6 }} />
                 <Text style={styles.detailsLabel}>Role Registered</Text>
               </View>
-              <Text style={styles.detailsValue}>Commercial Heavy Fleet</Text>
+              <Text style={styles.detailsValue}>Commercial Heavy Fleet Mechanic</Text>
             </View>
             <View style={styles.divider} />
             <View style={styles.detailsRow}>
@@ -85,7 +178,7 @@ export default function MechanicRegistrationScreen() {
                 <Ionicons name="time-outline" size={16} color={colors.navy} style={{ marginRight: 6 }} />
                 <Text style={styles.detailsLabel}>Verification SLA</Text>
               </View>
-              <View style={{alignItems: 'flex-end'}}>
+              <View style={{ alignItems: 'flex-end' }}>
                 <Text style={styles.detailsValue}>2 - 4 business hours</Text>
                 <Text style={styles.detailsSubValue}>Today before 6:30 PM</Text>
               </View>
@@ -106,19 +199,19 @@ export default function MechanicRegistrationScreen() {
           <View style={styles.card}>
             <View style={styles.pipelineHeader}>
               <Text style={styles.pipelineTitle}>Compliance Pipeline</Text>
-              <Text style={styles.pipelineStep}>Step 2 of 3 Active</Text>
+              <Text style={styles.pipelineStep}>Step 1 Complete • Step 2 Active</Text>
             </View>
-            
+
             <View style={styles.timelineItem}>
               <View style={styles.timelineIconActive}>
                 <Ionicons name="checkmark" size={16} color={colors.white} />
               </View>
               <View style={styles.timelineContent}>
                 <View style={styles.timelineTitleRow}>
-                  <Text style={styles.timelineTitle}>DigiLocker & VAHAN RC Check</Text>
-                  <Text style={styles.timelineStatusText}>Instant</Text>
+                  <Text style={styles.timelineTitle}>Account & Credentials Created</Text>
+                  <Text style={styles.timelineStatusText}>Done</Text>
                 </View>
-                <Text style={styles.timelineDesc}>National permit & vehicle registration verified.</Text>
+                <Text style={styles.timelineDesc}>Haul360 identity registered securely on network.</Text>
               </View>
             </View>
 
@@ -133,7 +226,7 @@ export default function MechanicRegistrationScreen() {
                     <Text style={styles.tagBlueLightText}>In Progress</Text>
                   </View>
                 </View>
-                <Text style={styles.timelineDesc}>Commercial driving license & insurance validation underway.</Text>
+                <Text style={styles.timelineDesc}>Identity documents and workshop credentials under review.</Text>
               </View>
             </View>
 
@@ -143,10 +236,10 @@ export default function MechanicRegistrationScreen() {
               </View>
               <View style={styles.timelineContent}>
                 <View style={styles.timelineTitleRow}>
-                  <Text style={styles.timelineTitlePending}>Approval & Trip Activation</Text>
+                  <Text style={styles.timelineTitlePending}>Approval & Beacon Activation</Text>
                   <Text style={styles.timelineStatusText}>Pending</Text>
                 </View>
-                <Text style={styles.timelineDesc}>SMS, WhatsApp & app notification sent upon green flag.</Text>
+                <Text style={styles.timelineDesc}>SMS notification will be sent upon profile activation.</Text>
               </View>
             </View>
           </View>
@@ -156,14 +249,18 @@ export default function MechanicRegistrationScreen() {
               <Ionicons name="shield-checkmark-outline" size={20} color={colors.blue} />
             </View>
             <View style={styles.securityTextBox}>
-              <Text style={styles.securityTitle}>Official Freight Carrier Protocol</Text>
+              <Text style={styles.securityTitle}>Official Freight Partner Protocol</Text>
               <Text style={styles.securityDesc}>Encrypted data sharing under MV Act & ISO 27001</Text>
             </View>
             <Ionicons name="lock-closed-outline" size={18} color={colors.textSecondary} />
           </View>
 
-          <TouchableOpacity style={styles.blackButton} onPress={() => router.replace('/auth/login?role=Mechanic' as any)} activeOpacity={0.8}>
-            <Text style={styles.blackButtonText}>Go to Dashboard Preview →</Text>
+          <TouchableOpacity
+            style={styles.blackButton}
+            onPress={() => router.replace('/auth/login?role=Mechanic' as any)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.blackButtonText}>Go to Login Screen →</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.helpButton} activeOpacity={0.8}>
@@ -173,12 +270,16 @@ export default function MechanicRegistrationScreen() {
 
           <View style={styles.footerBranding}>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-              <Ionicons name="shield-checkmark-outline" size={14} color={colors.textSecondary} style={{ marginRight: 4 }} />
+              <Ionicons
+                name="shield-checkmark-outline"
+                size={14}
+                color={colors.textSecondary}
+                style={{ marginRight: 4 }}
+              />
               <Text style={styles.footerBrandingTitle}>HAUL360 SECURE FREIGHT PLATFORM</Text>
             </View>
             <Text style={styles.footerBrandingDesc}>Version 4.12.0 • Encrypted Telematics Engine</Text>
           </View>
-
         </ScrollView>
       </Screen>
     );
@@ -197,12 +298,24 @@ export default function MechanicRegistrationScreen() {
           </View>
         </View>
 
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {errorMessage && (
+            <View style={styles.errorBanner}>
+              <Ionicons name="alert-circle" size={18} color="#DC2626" style={{ marginRight: 8 }} />
+              <Text style={styles.errorBannerText}>{errorMessage}</Text>
+            </View>
+          )}
+
           <View style={styles.introSection}>
             <View style={styles.networkBadge}>
               <Ionicons name="construct" size={14} color={colors.orange} style={{ marginRight: 6 }} />
-              <Text style={styles.networkText}>HAUL360 NETWORK <Text style={styles.dotOrange}>•</Text> Priority Verification</Text>
+              <Text style={styles.networkText}>
+                HAUL360 NETWORK <Text style={styles.dotOrange}>•</Text> Priority Verification
+              </Text>
             </View>
             <Text style={styles.pageTitle}>Mechanic Partner Onboarding</Text>
             <Text style={styles.pageSubtitle}>Join the 24/7 on-demand highway breakdown and fast repair network.</Text>
@@ -226,7 +339,9 @@ export default function MechanicRegistrationScreen() {
               </View>
               <View style={styles.profileBoxRight}>
                 <Text style={styles.profileTitle}>Profile Picture</Text>
-                <Text style={styles.profileDesc}>Clear front-facing passport style photo for driver identification badge.</Text>
+                <Text style={styles.profileDesc}>
+                  Clear front-facing passport style photo for driver identification badge.
+                </Text>
                 <TouchableOpacity>
                   <Text style={styles.linkText}>Select Photo</Text>
                 </TouchableOpacity>
@@ -236,17 +351,66 @@ export default function MechanicRegistrationScreen() {
             <Text style={styles.inputLabel}>Full Legal Name (as per Govt ID)</Text>
             <View style={styles.inputWrapper}>
               <Ionicons name="person-outline" size={18} color={colors.textSecondary} style={{ marginRight: 8 }} />
-              <Text style={styles.placeholderText}>e.g. Ramesh Chandra Verma</Text>
+              <TextInput
+                style={styles.textInput}
+                value={form.name}
+                onChangeText={(text) => setForm((prev) => ({ ...prev, name: text }))}
+                placeholder="e.g. Ramesh Chandra Verma"
+                placeholderTextColor="#94A3B8"
+              />
             </View>
 
             <Text style={styles.inputLabel}>Registered Mobile Number</Text>
             <View style={styles.inputWrapper}>
-              <Ionicons name="phone-portrait-outline" size={18} color={colors.textSecondary} style={{ marginRight: 8 }} />
-              <Text style={styles.inputText}>+91 98765 43210</Text>
-              <View style={styles.otpBadge}>
-                <Ionicons name="checkmark-circle" size={12} color="#92400E" style={{ marginRight: 4 }} />
-                <Text style={styles.otpBadgeText}>OTP Verified</Text>
-              </View>
+              <Ionicons
+                name="phone-portrait-outline"
+                size={18}
+                color={colors.textSecondary}
+                style={{ marginRight: 8 }}
+              />
+              <TextInput
+                style={styles.textInput}
+                value={form.mobile}
+                onChangeText={(text) => setForm((prev) => ({ ...prev, mobile: text }))}
+                placeholder="9876543210"
+                placeholderTextColor="#94A3B8"
+                keyboardType="phone-pad"
+                maxLength={10}
+              />
+            </View>
+
+            <Text style={styles.inputLabel}>Email Address</Text>
+            <View style={styles.inputWrapper}>
+              <Ionicons name="mail-outline" size={18} color={colors.textSecondary} style={{ marginRight: 8 }} />
+              <TextInput
+                style={styles.textInput}
+                value={form.email}
+                onChangeText={(text) => setForm((prev) => ({ ...prev, email: text }))}
+                placeholder="ramesh.verma@example.com"
+                placeholderTextColor="#94A3B8"
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
+
+            <Text style={styles.inputLabel}>Account Password (Min 8 Characters)</Text>
+            <View style={styles.inputWrapper}>
+              <Ionicons name="lock-closed-outline" size={18} color={colors.textSecondary} style={{ marginRight: 8 }} />
+              <TextInput
+                style={styles.textInput}
+                value={form.password}
+                onChangeText={(text) => setForm((prev) => ({ ...prev, password: text }))}
+                placeholder="Enter password (min 8 chars)"
+                placeholderTextColor="#94A3B8"
+                secureTextEntry={!showPassword}
+              />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={{ padding: 4 }}>
+                <Ionicons
+                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                  size={18}
+                  color={colors.textSecondary}
+                />
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -264,7 +428,14 @@ export default function MechanicRegistrationScreen() {
             <Text style={styles.inputLabel}>Aadhaar Card Number (12 Digits)</Text>
             <View style={styles.inputWrapper}>
               <Ionicons name="document-text-outline" size={18} color={colors.textSecondary} style={{ marginRight: 8 }} />
-              <Text style={styles.placeholderText}>4521 8934 1029</Text>
+              <TextInput
+                style={styles.textInput}
+                value={form.aadhaar}
+                onChangeText={(text) => setForm((prev) => ({ ...prev, aadhaar: text }))}
+                placeholder="4521 8934 1029"
+                placeholderTextColor="#94A3B8"
+                keyboardType="numeric"
+              />
             </View>
 
             <View style={styles.attachBox}>
@@ -284,7 +455,14 @@ export default function MechanicRegistrationScreen() {
             <Text style={styles.inputLabel}>PAN Card (10 Characters)</Text>
             <View style={styles.inputWrapper}>
               <Ionicons name="card-outline" size={18} color={colors.textSecondary} style={{ marginRight: 8 }} />
-              <Text style={styles.placeholderText}>ABCDE1234F</Text>
+              <TextInput
+                style={styles.textInput}
+                value={form.pan}
+                onChangeText={(text) => setForm((prev) => ({ ...prev, pan: text }))}
+                placeholder="ABCDE1234F"
+                placeholderTextColor="#94A3B8"
+                autoCapitalize="characters"
+              />
             </View>
 
             <View style={styles.attachBox}>
@@ -313,7 +491,7 @@ export default function MechanicRegistrationScreen() {
                 <Text style={styles.tagTransparentText}>Auto-Detect</Text>
               </View>
             </View>
-            
+
             <View style={styles.mapPlaceholder}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Ionicons name="location" size={14} color={colors.orange} style={{ marginRight: 4 }} />
@@ -324,13 +502,30 @@ export default function MechanicRegistrationScreen() {
             <Text style={styles.inputLabel}>Garage / Workshop Address</Text>
             <View style={styles.inputWrapper}>
               <Ionicons name="business-outline" size={18} color={colors.textSecondary} style={{ marginRight: 8 }} />
-              <Text style={styles.placeholderText}>Shop 14, Haul360 Commercial Fleet Plaza</Text>
+              <TextInput
+                style={styles.textInput}
+                value={form.address}
+                onChangeText={(text) => setForm((prev) => ({ ...prev, address: text }))}
+                placeholder="Shop 14, Haul360 Commercial Fleet Plaza"
+                placeholderTextColor="#94A3B8"
+              />
             </View>
 
             <Text style={styles.inputLabel}>Nearest Highway & Milestone / Landmark</Text>
             <View style={styles.inputWrapper}>
-              <Ionicons name="trail-sign-outline" size={18} color={colors.textSecondary} style={{ marginRight: 8 }} />
-              <Text style={styles.placeholderText}>e.g. NH-48 Km Stone 42, Opposite Toll Post</Text>
+              <Ionicons
+                name="trail-sign-outline"
+                size={18}
+                color={colors.textSecondary}
+                style={{ marginRight: 8 }}
+              />
+              <TextInput
+                style={styles.textInput}
+                value={form.landmark}
+                onChangeText={(text) => setForm((prev) => ({ ...prev, landmark: text }))}
+                placeholder="e.g. NH-48 Km Stone 42, Opposite Toll Post"
+                placeholderTextColor="#94A3B8"
+              />
             </View>
           </View>
 
@@ -344,7 +539,11 @@ export default function MechanicRegistrationScreen() {
             <Text style={styles.sectionDesc}>Select all commercial fleets you service for breakdown dispatch.</Text>
 
             <View style={styles.grid}>
-              <TouchableOpacity style={styles.gridItem} onPress={() => toggleSpec('heavy')} activeOpacity={0.8}>
+              <TouchableOpacity
+                style={styles.gridItem}
+                onPress={() => toggleSpec('heavy')}
+                activeOpacity={0.8}
+              >
                 <View style={styles.checkboxRow}>
                   <View style={[styles.checkbox, form.specialization.heavy && styles.checkboxActive]}>
                     {form.specialization.heavy && <Ionicons name="checkmark" size={12} color={colors.white} />}
@@ -354,7 +553,11 @@ export default function MechanicRegistrationScreen() {
                 <Text style={styles.gridItemDesc}>16-32 Wheeler, Trailers</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.gridItem} onPress={() => toggleSpec('lcv')} activeOpacity={0.8}>
+              <TouchableOpacity
+                style={styles.gridItem}
+                onPress={() => toggleSpec('lcv')}
+                activeOpacity={0.8}
+              >
                 <View style={styles.checkboxRow}>
                   <View style={[styles.checkbox, form.specialization.lcv && styles.checkboxActive]}>
                     {form.specialization.lcv && <Ionicons name="checkmark" size={12} color={colors.white} />}
@@ -364,7 +567,11 @@ export default function MechanicRegistrationScreen() {
                 <Text style={styles.gridItemDesc}>Tata 407, Bolero Maxi</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.gridItem} onPress={() => toggleSpec('reefer')} activeOpacity={0.8}>
+              <TouchableOpacity
+                style={styles.gridItem}
+                onPress={() => toggleSpec('reefer')}
+                activeOpacity={0.8}
+              >
                 <View style={styles.checkboxRow}>
                   <View style={[styles.checkbox, form.specialization.reefer && styles.checkboxActive]}>
                     {form.specialization.reefer && <Ionicons name="checkmark" size={12} color={colors.white} />}
@@ -374,7 +581,11 @@ export default function MechanicRegistrationScreen() {
                 <Text style={styles.gridItemDesc}>Cold-chain chillers</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.gridItem} onPress={() => toggleSpec('tipper')} activeOpacity={0.8}>
+              <TouchableOpacity
+                style={styles.gridItem}
+                onPress={() => toggleSpec('tipper')}
+                activeOpacity={0.8}
+              >
                 <View style={styles.checkboxRow}>
                   <View style={[styles.checkbox, form.specialization.tipper && styles.checkboxActive]}>
                     {form.specialization.tipper && <Ionicons name="checkmark" size={12} color={colors.white} />}
@@ -396,7 +607,12 @@ export default function MechanicRegistrationScreen() {
 
             <Text style={styles.inputLabel}>Mechanic Operational Model</Text>
             <View style={styles.inputWrapper}>
-              <Ionicons name="person-circle-outline" size={18} color={colors.textSecondary} style={{ marginRight: 8 }} />
+              <Ionicons
+                name="person-circle-outline"
+                size={18}
+                color={colors.textSecondary}
+                style={{ marginRight: 8 }}
+              />
               <Text style={styles.inputText}>Highway Mobile Patrol / SOS Unit (Quick Van)</Text>
               <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
             </View>
@@ -409,9 +625,9 @@ export default function MechanicRegistrationScreen() {
                 <Text style={styles.toggleTitle}>24/7 Highway Emergency Support</Text>
                 <Text style={styles.toggleDesc}>Earn 1.8x night bonus dispatch tariffs</Text>
               </View>
-              <Switch 
-                value={form.support247} 
-                onValueChange={(val) => setForm(prev => ({...prev, support247: val}))} 
+              <Switch
+                value={form.support247}
+                onValueChange={(val) => setForm((prev) => ({ ...prev, support247: val }))}
                 trackColor={{ false: colors.border, true: colors.navy }}
                 thumbColor={colors.white}
               />
@@ -428,7 +644,10 @@ export default function MechanicRegistrationScreen() {
                 <Text style={styles.tagLightBlueText}>Optional</Text>
               </View>
             </View>
-            <Text style={styles.sectionDesc}>Upload OEM credentials (Bosch, Cummins, Tata Motors, Ashok Leyland) to unlock the Gold Verified Pro Mechanic badge on fleet dispatch screens.</Text>
+            <Text style={styles.sectionDesc}>
+              Upload OEM credentials (Bosch, Cummins, Tata Motors, Ashok Leyland) to unlock the Gold Verified Pro
+              Mechanic badge on fleet dispatch screens.
+            </Text>
 
             <View style={styles.dragDropBox}>
               <View style={styles.dragDropIconBox}>
@@ -445,15 +664,25 @@ export default function MechanicRegistrationScreen() {
             </View>
             <View style={styles.activationContent}>
               <Text style={styles.activationTitle}>Express 2-Hour Activation</Text>
-              <Text style={styles.activationDesc}>Our highway field officer will review KYC and approve breakdown beacon access immediately.</Text>
+              <Text style={styles.activationDesc}>
+                Our highway field officer will review KYC and approve breakdown beacon access immediately.
+              </Text>
             </View>
           </View>
 
-          <TouchableOpacity style={styles.orangeButton} onPress={() => setSubmitted(true)} activeOpacity={0.8}>
-            <Text style={styles.orangeButtonText}>Register Mechanic Profile →</Text>
+          <TouchableOpacity
+            style={[styles.orangeButton, isSubmitting && styles.buttonDisabled]}
+            onPress={handleRegister}
+            disabled={isSubmitting}
+            activeOpacity={0.8}
+          >
+            {isSubmitting ? (
+              <ActivityIndicator color={colors.navy} size="small" />
+            ) : (
+              <Text style={styles.orangeButtonText}>Register Mechanic Profile →</Text>
+            )}
           </TouchableOpacity>
           <Text style={styles.termsText}>By registering, you agree to Haul360 Roadside Protocol & SLA Terms</Text>
-
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
@@ -501,6 +730,22 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: spacing.md,
     paddingBottom: spacing.xxl,
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    borderRadius: 12,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  errorBannerText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#991B1B',
+    fontWeight: '500',
   },
   introSection: {
     marginBottom: spacing.lg,
@@ -635,29 +880,18 @@ const styles = StyleSheet.create({
     height: 48,
     marginBottom: spacing.md,
   },
-  placeholderText: {
-    fontSize: 14,
-    color: '#94A3B8',
+  textInput: {
     flex: 1,
+    fontSize: 14,
+    color: colors.navy,
+    fontWeight: '500',
+    paddingVertical: 0,
   },
   inputText: {
     fontSize: 14,
     color: colors.navy,
     fontWeight: 'bold',
     flex: 1,
-  },
-  otpBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FEF3C7',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  otpBadgeText: {
-    fontSize: 11,
-    color: '#92400E',
-    fontWeight: 'bold',
   },
   attachBox: {
     flexDirection: 'row',
@@ -864,6 +1098,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.md,
   },
+  buttonDisabled: {
+    opacity: 0.7,
+  },
   orangeButtonText: {
     fontSize: 16,
     fontWeight: 'bold',
@@ -874,7 +1111,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
   },
-  
+
   // SUCCESS SCREEN
   successTop: {
     alignItems: 'center',
