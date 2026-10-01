@@ -1,29 +1,86 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  TextInput,
+  ActivityIndicator,
+} from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/components/ui/Screen';
-import { typography } from '@/theme/typography';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
-import { radius } from '@/theme/radius';
 import { brand } from '@/constants/brand';
+import { useAuth } from '@/context/AuthContext';
+import { ApiError } from '@/services/api/types';
 
 export default function LoginScreen() {
   const { role } = useLocalSearchParams<{ role: string }>();
   const displayRole = role || 'Driver';
 
-  const [loginMethod, setLoginMethod] = useState<'mobile' | 'email'>('mobile');
-  const [identifier, setIdentifier] = useState('98765 43210');
-  const [password, setPassword] = useState('password123');
-  const [showPassword, setShowPassword] = useState(false);
+  const { login } = useAuth();
 
-  const handleLogin = () => {
-    if (displayRole === 'Mechanic') {
-      router.replace('/mechanic' as any);
-    } else {
-      alert(`Login Successful for ${displayRole} (Mock)`);
+  const [loginMethod, setLoginMethod] = useState<'mobile' | 'email'>('mobile');
+  const [mobileNumber, setMobileNumber] = useState('9876543210');
+  const [emailAddress, setEmailAddress] = useState('driver@haul360.com');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const handleLogin = async () => {
+    if (isLoading) return;
+
+    setErrorMessage(null);
+
+    const cleanMobile = mobileNumber.replace(/\D/g, '');
+    if (cleanMobile.length < 10) {
+      setErrorMessage('Please enter a valid 10-digit mobile number.');
+      return;
+    }
+
+    if (!password || password.length < 8) {
+      setErrorMessage('Password must be at least 8 characters long.');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const user = await login({
+        mobile: cleanMobile,
+        password,
+      });
+
+      // Role-based routing based strictly on backend verified user profile
+      if (user.role === 'mechanic') {
+        router.replace('/mechanic' as any);
+      } else {
+        // Fallback for roles that will have dashboards connected in later phases
+        router.replace('/mechanic' as any);
+      }
+    } catch (error: any) {
+      if (error instanceof ApiError) {
+        if (error.statusCode === 401) {
+          setErrorMessage('Invalid mobile number or password.');
+        } else if (error.statusCode === 400) {
+          setErrorMessage(error.message || 'Please check your login details.');
+        } else if (error.statusCode === 0) {
+          setErrorMessage('Unable to connect to Haul360. Please check your connection and try again.');
+        } else {
+          setErrorMessage(error.message || 'Something went wrong. Please try again.');
+        }
+      } else {
+        setErrorMessage('Unable to connect to Haul360. Please check your connection and try again.');
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -38,14 +95,13 @@ export default function LoginScreen() {
   return (
     <Screen safeArea style={styles.container}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardView}>
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.headerTop}>
-            <Image 
-              source={brand.logo} 
-              style={styles.logo} 
-              contentFit="contain" 
-            />
+            <Image source={brand.logo} style={styles.logo} contentFit="contain" />
             <View style={styles.systemBadge}>
               <View style={styles.dotGreen} />
               <Text style={styles.systemBadgeText}>FLEET SYSTEM ONLINE</Text>
@@ -57,29 +113,36 @@ export default function LoginScreen() {
             <Text style={styles.subtitle}>Log in to your Haul360 freight network account</Text>
           </View>
 
+          {errorMessage && (
+            <View style={styles.errorBanner}>
+              <Ionicons name="alert-circle" size={18} color="#DC2626" style={{ marginRight: 8 }} />
+              <Text style={styles.errorBannerText}>{errorMessage}</Text>
+            </View>
+          )}
+
           <View style={styles.card}>
             <View style={styles.tabsContainer}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.tab, loginMethod === 'mobile' && styles.tabActive]}
                 onPress={() => setLoginMethod('mobile')}
               >
-                <Ionicons 
-                  name="phone-portrait-outline" 
-                  size={15} 
-                  color={loginMethod === 'mobile' ? colors.navy : colors.textSecondary} 
-                  style={{ marginRight: 6 }} 
+                <Ionicons
+                  name="phone-portrait-outline"
+                  size={15}
+                  color={loginMethod === 'mobile' ? colors.navy : colors.textSecondary}
+                  style={{ marginRight: 6 }}
                 />
                 <Text style={[styles.tabText, loginMethod === 'mobile' && styles.tabTextActive]}>Mobile No.</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.tab, loginMethod === 'email' && styles.tabActive]}
                 onPress={() => setLoginMethod('email')}
               >
-                <Ionicons 
-                  name="mail-outline" 
-                  size={15} 
-                  color={loginMethod === 'email' ? colors.navy : colors.textSecondary} 
-                  style={{ marginRight: 6 }} 
+                <Ionicons
+                  name="mail-outline"
+                  size={15}
+                  color={loginMethod === 'email' ? colors.navy : colors.textSecondary}
+                  style={{ marginRight: 6 }}
                 />
                 <Text style={[styles.tabText, loginMethod === 'email' && styles.tabTextActive]}>Email Address</Text>
               </TouchableOpacity>
@@ -96,17 +159,33 @@ export default function LoginScreen() {
                   <Text style={styles.prefixText}>IN +91</Text>
                   <Ionicons name="chevron-down" size={12} color={colors.navy} style={{ marginLeft: 2 }} />
                 </View>
-                <Text style={styles.inputText}>{identifier}</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={mobileNumber}
+                  onChangeText={setMobileNumber}
+                  placeholder="9876543210"
+                  placeholderTextColor="#94A3B8"
+                  keyboardType="phone-pad"
+                  maxLength={10}
+                />
                 <Ionicons name="bus-outline" size={18} color={colors.textSecondary} />
               </View>
             ) : (
               <View style={styles.inputWrapper}>
                 <Ionicons name="mail-outline" size={18} color={colors.textSecondary} style={{ marginRight: 8 }} />
-                <Text style={styles.inputText}>driver@haul360.com</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={emailAddress}
+                  onChangeText={setEmailAddress}
+                  placeholder="driver@haul360.com"
+                  placeholderTextColor="#94A3B8"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
               </View>
             )}
 
-            <View style={[styles.inputHeaderRow, {marginTop: spacing.md}]}>
+            <View style={[styles.inputHeaderRow, { marginTop: spacing.md }]}>
               <Text style={styles.inputLabel}>Security Password</Text>
               <TouchableOpacity onPress={navigateToForgot}>
                 <Text style={styles.forgotText}>Forgot Password?</Text>
@@ -115,18 +194,34 @@ export default function LoginScreen() {
 
             <View style={styles.inputWrapper}>
               <Ionicons name="lock-closed-outline" size={18} color={colors.textSecondary} style={{ marginRight: 8 }} />
-              <Text style={styles.passwordDots}>{showPassword ? password : '••••••••••••'}</Text>
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                <Ionicons 
-                  name={showPassword ? 'eye-off-outline' : 'eye-outline'} 
-                  size={18} 
-                  color={colors.textSecondary} 
+              <TextInput
+                style={styles.textInput}
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Enter password (min 8 chars)"
+                placeholderTextColor="#94A3B8"
+                secureTextEntry={!showPassword}
+              />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={{ padding: 4 }}>
+                <Ionicons
+                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                  size={18}
+                  color={colors.textSecondary}
                 />
               </TouchableOpacity>
             </View>
 
-            <TouchableOpacity style={styles.blackButton} onPress={handleLogin} activeOpacity={0.8}>
-              <Text style={styles.blackButtonText}>Login to Haul360 →</Text>
+            <TouchableOpacity
+              style={[styles.blackButton, isLoading && styles.buttonDisabled]}
+              onPress={handleLogin}
+              disabled={isLoading}
+              activeOpacity={0.8}
+            >
+              {isLoading ? (
+                <ActivityIndicator color={colors.white} size="small" />
+              ) : (
+                <Text style={styles.blackButtonText}>Login to Haul360 →</Text>
+              )}
             </TouchableOpacity>
 
             <View style={styles.dividerRow}>
@@ -135,7 +230,7 @@ export default function LoginScreen() {
               <View style={styles.dividerLine} />
             </View>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.quickLoginButton}
               onPress={() => router.push(`/auth/otp?role=${encodeURIComponent(displayRole)}` as any)}
               activeOpacity={0.8}
@@ -166,7 +261,6 @@ export default function LoginScreen() {
               <Text style={styles.footerLink}>Create Account</Text>
             </TouchableOpacity>
           </View>
-
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
@@ -232,6 +326,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
   },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    borderRadius: 12,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  errorBannerText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#991B1B',
+    fontWeight: '500',
+  },
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
@@ -261,10 +371,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.05)',
     elevation: 1,
-  },
-  tabIcon: {
-    fontSize: 14,
-    marginRight: 6,
   },
   tabText: {
     fontSize: 13,
@@ -301,7 +407,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     height: 48,
     paddingHorizontal: spacing.md,
-    backgroundColor: '#FFFFFF', // For the mobile one, the image shows very faint background or white
+    backgroundColor: '#FFFFFF',
   },
   prefixBox: {
     flexDirection: 'row',
@@ -312,39 +418,17 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     marginRight: spacing.sm,
   },
-  prefixIcon: {
-    fontSize: 12,
-    marginRight: 4,
-  },
   prefixText: {
     fontSize: 13,
     fontWeight: 'bold',
     color: colors.navy,
   },
-  prefixCaret: {
-    fontSize: 12,
-    color: colors.navy,
-    marginLeft: 4,
-  },
-  inputText: {
+  textInput: {
     flex: 1,
     fontSize: 15,
     color: colors.navy,
-  },
-  inputRightIcon: {
-    fontSize: 18,
-    color: colors.textSecondary,
-  },
-  inputIcon: {
-    fontSize: 16,
-    marginRight: spacing.sm,
-  },
-  passwordDots: {
-    flex: 1,
-    fontSize: 18,
-    color: colors.navy,
-    letterSpacing: 2,
-    paddingTop: 6, // to align dots
+    fontWeight: '500',
+    paddingVertical: 0,
   },
   blackButton: {
     backgroundColor: '#000000',
@@ -354,6 +438,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: spacing.xl,
     marginBottom: spacing.lg,
+  },
+  buttonDisabled: {
+    opacity: 0.7,
   },
   blackButtonText: {
     color: colors.white,
@@ -391,10 +478,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  quickLoginIcon: {
-    fontSize: 16,
-    marginRight: spacing.sm,
-  },
   quickLoginText: {
     fontSize: 14,
     fontWeight: 'bold',
@@ -421,9 +504,6 @@ const styles = StyleSheet.create({
   },
   securityIconBox: {
     marginRight: spacing.sm,
-  },
-  securityIcon: {
-    fontSize: 20,
   },
   securityContent: {
     flex: 1,

@@ -12,7 +12,17 @@ export interface RegisterRequest {
   role: UserRole;
 }
 
-export interface RegisteredUser {
+export interface LoginRequest {
+  mobile: string;
+  password: string;
+}
+
+export interface AuthTokens {
+  accessToken: string;
+  refreshToken: string;
+}
+
+export interface UserProfile {
   id: string;
   role: UserRole;
   firstName?: string;
@@ -25,8 +35,23 @@ export interface RegisteredUser {
   updatedAt?: string;
 }
 
+export type RegisteredUser = UserProfile;
+
 export interface RegisterResponseData {
-  user: RegisteredUser;
+  user: UserProfile;
+}
+
+export interface LoginResponseData {
+  user: UserProfile;
+  tokens: AuthTokens;
+}
+
+export interface MeResponseData {
+  user: UserProfile;
+}
+
+export interface RefreshResponseData {
+  accessToken: string;
 }
 
 /**
@@ -47,6 +72,32 @@ export const authApi = {
       password: data.password,
       role: data.role,
     });
+  },
+
+  /**
+   * Authenticate user with mobile and password.
+   */
+  login: async (
+    data: LoginRequest
+  ): Promise<ApiResponse<LoginResponseData>> => {
+    return apiClient.post<LoginResponseData>('/auth/login', {
+      mobile: data.mobile.trim().replace(/\D/g, ''),
+      password: data.password,
+    });
+  },
+
+  /**
+   * Retrieve currently authenticated user profile using Bearer token.
+   */
+  me: async (token: string): Promise<ApiResponse<MeResponseData>> => {
+    return apiClient.get<MeResponseData>('/auth/me', { token });
+  },
+
+  /**
+   * Refresh expired access token using refresh token.
+   */
+  refresh: async (refreshToken: string): Promise<ApiResponse<RefreshResponseData>> => {
+    return apiClient.post<RefreshResponseData>('/auth/refresh', { refreshToken });
   },
 };
 

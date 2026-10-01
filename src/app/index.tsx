@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { Screen } from '@/components/ui/Screen';
@@ -8,14 +8,31 @@ import { typography } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
 import { brand } from '@/constants/brand';
+import { useAuth } from '@/context/AuthContext';
 
 export default function SplashScreenComponent() {
+  const { isAuthenticated, user, isLoading } = useAuth();
+
   useEffect(() => {
+    if (isLoading) return;
+
     const timer = setTimeout(() => {
-      router.replace('/onboarding/loads');
-    }, 2000); // 2 second display
+      if (isAuthenticated && user) {
+        // Authenticated role-based routing
+        if (user.role === 'mechanic') {
+          router.replace('/mechanic' as any);
+        } else {
+          // For other roles when connected later
+          router.replace('/onboarding/loads' as any);
+        }
+      } else {
+        // Unauthenticated initial onboarding flow
+        router.replace('/onboarding/loads' as any);
+      }
+    }, 1500);
+
     return () => clearTimeout(timer);
-  }, []);
+  }, [isAuthenticated, user, isLoading]);
 
   return (
     <Screen safeArea style={styles.container}>
@@ -49,7 +66,7 @@ export default function SplashScreenComponent() {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#EEF2FF', // very light blue/lavender as requested
+    backgroundColor: '#EEF2FF',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.xl,
   },

@@ -9,12 +9,16 @@ import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { brand } from '@/constants/brand';
 
+import { useAuth } from '@/context/AuthContext';
+
 export default function ProfileScreen() {
+  const { logout, user } = useAuth();
   const [sosMode, setSosMode] = useState(true);
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
 
-  const confirmLogout = () => {
+  const confirmLogout = async () => {
     setLogoutModalVisible(false);
+    await logout();
     router.replace('/auth/login?role=Mechanic' as any);
   };
 
