@@ -16,10 +16,10 @@ const startServer = async (): Promise<void> => {
     const app = createApp();
 
     // 3. Start Express HTTP Server
-    const server = app.listen(config.port, () => {
+    const server = app.listen(config.port, '0.0.0.0', () => {
       console.log(`\n==============================================`);
       console.log(`🚀 Haul360 Backend Server is running!`);
-      console.log(`📍 URL: http://localhost:${config.port}`);
+      console.log(`📍 URL: http://0.0.0.0:${config.port} (All Network Interfaces)`);
       console.log(`🏥 Health Check: http://localhost:${config.port}/api/health`);
       console.log(`🌱 Environment: ${config.nodeEnv}`);
       console.log(`==============================================\n`);

@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import {
   ApiResponse,
   ApiError,
@@ -7,20 +8,60 @@ import {
 } from './types';
 
 /**
+ * Extracts the dev machine's host IP (e.g. 192.168.1.35) from Expo Constants.
+ */
+const getDevServerHostIp = (): string | null => {
+  const hostUri =
+    Constants.expoConfig?.hostUri ||
+    (Constants as any).manifest2?.extra?.expoClient?.hostUri ||
+    (Constants as any).manifest?.debuggerHost ||
+    (Constants as any).experienceUrl;
+
+  if (typeof hostUri === 'string') {
+    const cleanHost = hostUri.replace(/^[a-zA-Z]+:\/\//, '');
+    const ip = cleanHost.split(':')[0]?.trim();
+    if (ip && ip !== 'localhost' && ip !== '127.0.0.1') {
+      return ip;
+    }
+  }
+  return null;
+};
+
+/**
  * Resolves the backend API base URL.
- * Prioritizes EXPO_PUBLIC_API_URL from environment variables,
- * with platform-aware fallbacks (10.0.2.2 for Android emulator, localhost for web/iOS).
+ * Automatically adapts:
+ * - Physical Android/iOS mobile devices over Wi-Fi (replaces localhost with dev machine's LAN IP)
+ * - Android Emulator (10.0.2.2)
+ * - Web and Localhost
  */
 export const getApiBaseUrl = (): string => {
   const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
-  if (envUrl) {
-    const cleanUrl = envUrl.replace(/\/+$/, '');
-    return cleanUrl.endsWith('/api') ? cleanUrl : `${cleanUrl}/api`;
+  const devHostIp = getDevServerHostIp();
+
+  let resolvedUrl = envUrl || '';
+
+  if (resolvedUrl) {
+    if (Platform.OS !== 'web' && (resolvedUrl.includes('localhost') || resolvedUrl.includes('127.0.0.1'))) {
+      if (devHostIp) {
+        resolvedUrl = resolvedUrl.replace(/localhost|127\.0\.0\.1/g, devHostIp);
+      } else if (Platform.OS === 'android') {
+        resolvedUrl = resolvedUrl.replace(/localhost|127\.0\.0\.1/g, '10.0.2.2');
+      }
+    }
+  } else {
+    if (Platform.OS === 'web') {
+      resolvedUrl = 'http://localhost:5000';
+    } else if (devHostIp) {
+      resolvedUrl = `http://${devHostIp}:5000`;
+    } else if (Platform.OS === 'android') {
+      resolvedUrl = 'http://10.0.2.2:5000';
+    } else {
+      resolvedUrl = 'http://localhost:5000';
+    }
   }
 
-  // Fallback host if EXPO_PUBLIC_API_URL is not set
-  const defaultHost = Platform.OS === 'android' ? 'http://10.0.2.2:5000' : 'http://localhost:5000';
-  return `${defaultHost}/api`;
+  const cleanUrl = resolvedUrl.replace(/\/+$/, '');
+  return cleanUrl.endsWith('/api') ? cleanUrl : `${cleanUrl}/api`;
 };
 
 const DEFAULT_TIMEOUT_MS = 15000;

@@ -22,6 +22,12 @@ export default function ProfileScreen() {
     router.replace('/auth/login?role=Mechanic' as any);
   };
 
+  const mechanicName = user
+    ? [user.firstName, user.lastName].filter(Boolean).join(' ').trim() ||
+      user.mobile ||
+      mechanicProfile.name
+    : mechanicProfile.name;
+
   return (
     <Screen safeArea style={styles.container}>
       <View style={styles.header}>
@@ -57,8 +63,10 @@ export default function ProfileScreen() {
                 </View>
                 <Text style={styles.expText}>• 12+ Yrs Fleet Exp</Text>
               </View>
-              <Text style={styles.name}>{mechanicProfile.name}</Text>
-              <Text style={styles.subtext}>Haul360 Highway Rescue & Fleet Care</Text>
+              <Text style={styles.name}>{mechanicName}</Text>
+              <Text style={styles.subtext}>
+                {user?.mobile ? `+91 ${user.mobile} • ` : ''}Haul360 Highway Rescue
+              </Text>
               <View style={styles.ratingBadge}>
                 <Ionicons name="star" size={12} color={colors.orange} style={{ marginRight: 3 }} />
                 <Text style={styles.ratingText}>{mechanicProfile.rating} <Text style={styles.reviewCount}>(248)</Text></Text>
