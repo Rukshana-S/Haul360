@@ -9,6 +9,8 @@ export interface MechanicRequest {
   amount: string;
   status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'COMPLETED';
   isEmergency?: boolean;
+  isScheduled?: boolean;
+  scheduledTime?: string;
   description?: string;
   timeRequested: string;
 }
@@ -18,7 +20,7 @@ export interface RepairJob {
   vehicle: string;
   driver: string;
   service: string;
-  status: 'Received' | 'Diagnosing' | 'Repairing' | 'Ready';
+  status: 'Received' | 'Diagnosing' | 'Repairing' | 'Ready' | 'Completed';
   progress: number;
   location: string;
   amount: string;
@@ -58,28 +60,85 @@ export const mockRequests: MechanicRequest[] = [
   },
   {
     id: 'REQ-002',
-    vehicle: 'Pneumatic Hose Rupture',
-    vehicleType: 'Eicher Pro 6028',
+    vehicle: 'Eicher Pro 6028',
+    vehicleType: '28T Heavy Cargo',
     driver: 'Manpreet Singh',
-    service: 'Pay on Site',
+    service: 'Pneumatic Hose Rupture & Pressure Valve Replacement',
     distance: '6.8 km',
-    location: 'NH-48 Corridor',
+    location: 'NH-48 Corridor Km 89',
     amount: '₹1,950',
     status: 'PENDING',
+    isScheduled: true,
+    scheduledTime: 'Today, 02:30 PM',
     timeRequested: '12 mins ago',
   },
   {
     id: 'REQ-003',
-    vehicle: 'Battery Jumpstart & Alternator Check',
-    vehicleType: 'Ashok Leyland 4220',
+    vehicle: 'Ashok Leyland 4220',
+    vehicleType: 'Multi-axle Trailer',
     driver: 'Anup Sharma',
-    service: 'Fast UPI',
+    service: 'Battery Jumpstart & Alternator Circuit Diagnostic',
     distance: '8.1 km',
-    location: 'Bypass Road',
+    location: 'Bypass Road Truck Hub',
     amount: '₹1,200',
     status: 'PENDING',
+    isScheduled: true,
+    scheduledTime: 'Today, 04:00 PM',
     timeRequested: '18 mins ago',
-  }
+  },
+  {
+    id: 'REQ-004',
+    vehicle: 'BharatBenz 3528C',
+    vehicleType: 'Tipper Multi-axle',
+    driver: 'Gurvinder Singh',
+    service: 'Engine Overheating & Coolant Radiator Pipe Rupture',
+    distance: '3.1 km away',
+    location: 'NH-48 Expressway Flyover Margin',
+    amount: '₹4,200',
+    status: 'PENDING',
+    isEmergency: true,
+    timeRequested: '08:42',
+  },
+  {
+    id: 'REQ-005',
+    vehicle: 'Mahindra Blazo X 49',
+    vehicleType: '49T Heavy Hauler',
+    driver: 'Sanjay Deshmukh',
+    service: 'Scheduled Brake Pad Inspection & Hub Greasing',
+    distance: '11.5 km',
+    location: 'NH-48 Toll Plaza Logistics Park',
+    amount: '₹2,100',
+    status: 'PENDING',
+    isScheduled: true,
+    scheduledTime: 'Tomorrow, 10:00 AM',
+    timeRequested: '35 mins ago',
+  },
+  {
+    id: 'REQ-006',
+    vehicle: 'Tata Prima 2830.K',
+    vehicleType: 'Heavy Dumper',
+    driver: 'Naseer Khan',
+    service: 'Differential Oil Flush & Filter Replacement',
+    distance: '14.0 km',
+    location: 'Industrial Freight Yard Gate 3',
+    amount: '₹2,800',
+    status: 'PENDING',
+    isScheduled: true,
+    scheduledTime: 'Tomorrow, 01:30 PM',
+    timeRequested: '1 hour ago',
+  },
+  {
+    id: 'REQ-007',
+    vehicle: 'Volvo FM 420 8x4',
+    vehicleType: 'Puller Tractor',
+    driver: 'Rajinder Kumar',
+    service: 'Air Suspension Leveling Valve Calibration',
+    distance: '5.4 km',
+    location: 'NH-48 Highway Service Station',
+    amount: '₹5,600',
+    status: 'COMPLETED',
+    timeRequested: 'Yesterday, 05:15 PM',
+  },
 ];
 
 export const mockRepairs: RepairJob[] = [

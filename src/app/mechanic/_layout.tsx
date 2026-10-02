@@ -2,8 +2,12 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/theme/colors';
+import { MechanicProvider, useMechanic } from '@/context/MechanicContext';
 
-export default function MechanicLayout() {
+function MechanicTabs() {
+  const { requests } = useMechanic();
+  const pendingCount = requests.filter((r) => r.status === 'PENDING').length;
+
   return (
     <Tabs
       screenOptions={{
@@ -22,7 +26,7 @@ export default function MechanicLayout() {
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: 'bold',
-        }
+        },
       }}
     >
       <Tabs.Screen
@@ -41,7 +45,7 @@ export default function MechanicLayout() {
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'alert-circle' : 'alert-circle-outline'} size={22} color={color} />
           ),
-          tabBarBadge: 3,
+          tabBarBadge: pendingCount > 0 ? pendingCount : undefined,
         }}
       />
       <Tabs.Screen
@@ -71,7 +75,7 @@ export default function MechanicLayout() {
           ),
         }}
       />
-      
+
       {/* Hide secondary screens from bottom tabs */}
       <Tabs.Screen name="request-details" options={{ href: null }} />
       <Tabs.Screen name="repair-details" options={{ href: null }} />
@@ -83,3 +87,10 @@ export default function MechanicLayout() {
   );
 }
 
+export default function MechanicLayout() {
+  return (
+    <MechanicProvider>
+      <MechanicTabs />
+    </MechanicProvider>
+  );
+}
