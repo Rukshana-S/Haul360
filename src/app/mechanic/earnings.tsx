@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/components/ui/Screen';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { EarningsCard } from '@/components/mechanic/EarningsCard';
 import { mockEarnings } from '@/constants/mechanicMockData';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
@@ -44,16 +45,7 @@ export default function EarningsScreen() {
           <EmptyState title="No transactions yet" message="Completed repairs and payouts will appear here." iconName="wallet-outline" />
         ) : (
           mockEarnings.map((earning) => (
-            <View key={earning.id} style={styles.transactionCard}>
-              <View style={styles.txIconBox}>
-                <Ionicons name="wallet-outline" size={20} color={colors.navy} />
-              </View>
-              <View style={styles.txLeft}>
-                <Text style={styles.txService}>{earning.service}</Text>
-                <Text style={styles.txDate}>{earning.date} • {earning.status}</Text>
-              </View>
-              <Text style={styles.txAmount}>+{earning.amount}</Text>
-            </View>
+            <EarningsCard key={earning.id} earning={earning} />
           ))
         )}
 

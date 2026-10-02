@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/components/ui/Screen';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { ErrorState } from '@/components/ui/ErrorState';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { brand } from '@/constants/brand';
@@ -23,6 +24,8 @@ import {
 } from '@/constants/mechanicMockData';
 import { useAuth } from '@/context/AuthContext';
 import { StatCard } from '@/components/mechanic/StatCard';
+import { ServiceRequestCard } from '@/components/mechanic/ServiceRequestCard';
+import { RepairCard } from '@/components/mechanic/RepairCard';
 import {
   AvailabilitySelector,
   AvailabilityStatus,
@@ -38,7 +41,7 @@ export default function MechanicDashboardScreen() {
   if (isLoading) {
     return (
       <Screen safeArea style={styles.container}>
-        <LoadingState message="Loading mechanic terminal..." />
+        <LoadingState message="Loading mechanic workspace..." />
       </Screen>
     );
   }
@@ -59,12 +62,12 @@ export default function MechanicDashboardScreen() {
     );
   }
 
-  // Derive real mechanic display name from AuthContext
+  // Derive real mechanic display name from AuthContext gracefully
   const mechanicName = user
     ? [user.firstName, user.lastName].filter(Boolean).join(' ').trim() ||
       user.mobile ||
-      mechanicProfile.name
-    : mechanicProfile.name;
+      'Mechanic'
+    : 'Mechanic';
 
   const activeRepair = mockRepairs[0];
   const emergencyRequest = mockRequests.find((r) => r.isEmergency) || mockRequests[0];
@@ -73,7 +76,7 @@ export default function MechanicDashboardScreen() {
 
   return (
     <Screen safeArea style={styles.container}>
-      {/* Header */}
+      {/* Clean Mobile Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Image source={brand.logo} style={styles.headerLogo} contentFit="contain" />
@@ -83,7 +86,7 @@ export default function MechanicDashboardScreen() {
             <Text style={styles.headerHubText}>NH-48 Hub</Text>
           </View>
         </View>
-        
+
         <View style={styles.headerRight}>
           <TouchableOpacity
             style={[styles.statusPill, { backgroundColor: currentStatus.bgColor }]}
@@ -106,7 +109,7 @@ export default function MechanicDashboardScreen() {
             accessibilityRole="button"
             accessibilityLabel="Notifications and dispatches"
           >
-            <Ionicons name="notifications-outline" size={22} color={colors.navy} />
+            <Ionicons name="notifications-outline" size={20} color={colors.navy} />
             <View style={styles.notificationDot} />
           </TouchableOpacity>
         </View>
@@ -122,12 +125,13 @@ export default function MechanicDashboardScreen() {
           <View style={styles.profileRow}>
             <View style={styles.avatarContainer}>
               <View style={styles.avatarMock}>
-                <Ionicons name="person" size={28} color="#94A3B8" />
+                <Ionicons name="person" size={26} color="#94A3B8" />
               </View>
               <View style={[styles.statusDot, { backgroundColor: currentStatus.color }]} />
             </View>
 
             <View style={styles.profileInfo}>
+              <Text style={styles.greetingText}>Welcome back,</Text>
               <View style={styles.nameRow}>
                 <Text style={styles.profileName} numberOfLines={1}>
                   {mechanicName}
@@ -182,7 +186,7 @@ export default function MechanicDashboardScreen() {
           </View>
         </View>
 
-        {/* Real Statistics Grid using Reusable StatCard */}
+        {/* Overview Statistics Grid using Reusable StatCard */}
         <Text style={styles.sectionHeaderTitle}>Overview Metrics</Text>
         <View style={styles.statsGrid}>
           <StatCard
@@ -297,63 +301,12 @@ export default function MechanicDashboardScreen() {
           </View>
         )}
 
-        {/* Active Repair Card */}
+        {/* Active Repair Card using Reusable RepairCard */}
         {activeRepair && (
-          <View style={styles.activeRepairCard}>
-            <View style={styles.activeHeader}>
-              <View style={styles.activeTitleRow}>
-                <View style={styles.dotNavy} />
-                <Text style={styles.activeTitle}>Active Repair #{activeRepair.id}</Text>
-              </View>
-              <View style={styles.timeBadge}>
-                <Ionicons name="time-outline" size={12} color={colors.navy} style={{ marginRight: 3 }} />
-                <Text style={styles.timeBadgeText}>{activeRepair.timeElapsed}</Text>
-              </View>
-            </View>
-
-            <View style={styles.activeVehicleRow}>
-              <View style={styles.vehicleIconBox}>
-                <Ionicons name="construct" size={20} color={colors.navy} />
-              </View>
-              <View style={styles.vehicleInfoBox}>
-                <Text style={styles.activeVehicle}>{activeRepair.vehicle}</Text>
-                <Text style={styles.activeDriver}>Customer: {activeRepair.driver}</Text>
-                <Text style={styles.activeService}>Stage: {activeRepair.service}</Text>
-              </View>
-            </View>
-
-            <View style={styles.progressContainer}>
-              <View style={styles.progressLabels}>
-                <Text style={styles.progressLabel}>Diagnostics (Done)</Text>
-                <Text style={styles.progressLabel}>Repair ({activeRepair.progress}%)</Text>
-                <Text style={styles.progressLabel}>Ready</Text>
-              </View>
-              <View style={styles.progressBarBg}>
-                <View style={[styles.progressBarFill, { width: `${activeRepair.progress}%` }]} />
-              </View>
-            </View>
-
-            <View style={styles.activeFooter}>
-              <View style={styles.activeLocationRow}>
-                <Ionicons name="location-outline" size={13} color={colors.textSecondary} style={{ marginRight: 3 }} />
-                <Text style={styles.activeLocation} numberOfLines={1}>
-                  {activeRepair.location}
-                </Text>
-              </View>
-              <Text style={styles.activeEst}>Est. {activeRepair.amount}</Text>
-            </View>
-
-            <TouchableOpacity
-              style={styles.openJobBtn}
-              onPress={() => router.push(`/mechanic/repair-details?id=${activeRepair.id}` as any)}
-              activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityLabel="Open Active Job Sheet and Diagnostics"
-            >
-              <Ionicons name="document-text-outline" size={15} color={colors.navy} style={{ marginRight: 6 }} />
-              <Text style={styles.openJobBtnText}>Open Active Job Sheet & Diagnostics</Text>
-            </TouchableOpacity>
-          </View>
+          <RepairCard
+            repair={activeRepair}
+            onPress={() => router.push(`/mechanic/repair-details?id=${activeRepair.id}` as any)}
+          />
         )}
 
         {/* Quick Actions / Mechanic Toolkit */}
@@ -391,7 +344,7 @@ export default function MechanicDashboardScreen() {
             },
             {
               label: 'Reviews',
-              sublabel: 'Rating 4.9',
+              sublabel: 'Customer Rating',
               icon: 'star-outline' as const,
               route: '/mechanic/reviews',
             },
@@ -419,7 +372,7 @@ export default function MechanicDashboardScreen() {
           ))}
         </View>
 
-        {/* Incoming Standby Service Leads */}
+        {/* Incoming Standby Service Requests using Reusable ServiceRequestCard */}
         <View style={styles.sectionHeaderRow}>
           <View>
             <Text style={styles.sectionTitle}>Incoming Standby Requests</Text>
@@ -430,38 +383,21 @@ export default function MechanicDashboardScreen() {
           </TouchableOpacity>
         </View>
 
-        {incomingLeads.map((lead) => (
-          <TouchableOpacity
-            key={lead.id}
-            style={styles.leadCard}
-            onPress={() => router.push(`/mechanic/request-details?id=${lead.id}` as any)}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityLabel={`Service request for ${lead.vehicle}`}
-          >
-            <View style={styles.leadIconBox}>
-              <Ionicons name="car-sport-outline" size={20} color={colors.navy} />
-            </View>
-            <View style={styles.leadInfo}>
-              <View style={styles.leadTitleRow}>
-                <Text style={styles.leadTitle}>{lead.vehicle}</Text>
-                <View style={styles.distBadge}>
-                  <Text style={styles.distText}>{lead.distance}</Text>
-                </View>
-              </View>
-              <Text style={styles.leadSubtitle} numberOfLines={1}>
-                {lead.vehicleType} • Driver: {lead.driver}
-              </Text>
-              <Text style={styles.leadFooter} numberOfLines={1}>
-                Est. {lead.amount} • {lead.location}
-              </Text>
-            </View>
-            <View style={styles.reviewBtn}>
-              <Text style={styles.reviewBtnText}>Review</Text>
-              <Ionicons name="chevron-forward" size={13} color={colors.navy} style={{ marginLeft: 2 }} />
-            </View>
-          </TouchableOpacity>
-        ))}
+        {incomingLeads.length === 0 ? (
+          <EmptyState
+            title="No incoming requests"
+            message="New service and roadside assistance dispatches will appear here."
+            iconName="document-text-outline"
+          />
+        ) : (
+          incomingLeads.map((lead) => (
+            <ServiceRequestCard
+              key={lead.id}
+              request={lead}
+              onPress={() => router.push(`/mechanic/request-details?id=${lead.id}` as any)}
+            />
+          ))
+        )}
       </ScrollView>
 
       {/* Availability Selection Modal */}
@@ -562,7 +498,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     marginBottom: spacing.md,
-    elevation: 3,
+    elevation: 2,
   },
   profileRow: {
     flexDirection: 'row',
@@ -574,9 +510,9 @@ const styles = StyleSheet.create({
     marginRight: spacing.md,
   },
   avatarMock: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: '#334155',
     alignItems: 'center',
     justifyContent: 'center',
@@ -596,6 +532,11 @@ const styles = StyleSheet.create({
   profileInfo: {
     flex: 1,
     paddingRight: spacing.xs,
+  },
+  greetingText: {
+    fontSize: 11,
+    color: '#94A3B8',
+    fontWeight: '500',
   },
   nameRow: {
     flexDirection: 'row',
@@ -688,7 +629,7 @@ const styles = StyleSheet.create({
 
   // Section Headers
   sectionHeaderTitle: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     color: '#64748B',
     marginBottom: spacing.sm,
@@ -879,142 +820,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  // Active Repair
-  activeRepairCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    elevation: 1,
-  },
-  activeHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  activeTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  dotNavy: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.navy,
-    marginRight: 6,
-  },
-  activeTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.navy,
-  },
-  timeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  timeBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.navy,
-  },
-  activeVehicleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  vehicleIconBox: {
-    width: 40,
-    height: 40,
-    backgroundColor: '#EFF6FF',
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.md,
-  },
-  vehicleInfoBox: {
-    flex: 1,
-  },
-  activeVehicle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.navy,
-    marginBottom: 2,
-  },
-  activeDriver: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginBottom: 2,
-  },
-  activeService: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.navy,
-  },
-  progressContainer: {
-    marginBottom: spacing.md,
-  },
-  progressLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  progressLabel: {
-    fontSize: 10,
-    color: colors.textSecondary,
-    fontWeight: '500',
-  },
-  progressBarBg: {
-    height: 6,
-    backgroundColor: '#E2E8F0',
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: colors.navy,
-  },
-  activeFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  activeLocationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    marginRight: spacing.sm,
-  },
-  activeLocation: {
-    fontSize: 11,
-    color: colors.textSecondary,
-  },
-  activeEst: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.navy,
-  },
-  openJobBtn: {
-    flexDirection: 'row',
-    backgroundColor: '#EFF6FF',
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  openJobBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.navy,
-  },
-
   // Toolkit / Quick Actions
   toolkitGrid: {
     flexDirection: 'row',
@@ -1053,74 +858,5 @@ const styles = StyleSheet.create({
     fontSize: 9,
     color: '#64748B',
     textAlign: 'center',
-  },
-
-  // Leads
-  leadCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    padding: spacing.md,
-    borderRadius: 12,
-    marginBottom: spacing.sm,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  leadIconBox: {
-    width: 40,
-    height: 40,
-    backgroundColor: '#EFF6FF',
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.md,
-  },
-  leadInfo: {
-    flex: 1,
-  },
-  leadTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 2,
-  },
-  leadTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.navy,
-    marginRight: 8,
-  },
-  distBadge: {
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  distText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: colors.navy,
-  },
-  leadSubtitle: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    marginBottom: 2,
-  },
-  leadFooter: {
-    fontSize: 11,
-    color: colors.navy,
-    fontWeight: '600',
-  },
-  reviewBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  reviewBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.navy,
   },
 });

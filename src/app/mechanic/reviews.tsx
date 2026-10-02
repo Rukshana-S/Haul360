@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/components/ui/Screen';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ReviewCard } from '@/components/mechanic/ReviewCard';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 
@@ -65,24 +66,7 @@ export default function ReviewsScreen() {
           <EmptyState title="No reviews yet" message="When customers leave reviews, they will appear here." iconName="star-outline" />
         ) : (
           mockDetailedReviews.map(review => (
-            <View key={review.id} style={styles.reviewCard}>
-              <View style={styles.cardHeader}>
-                <Text style={styles.customerName}>{review.customer}</Text>
-                <View style={styles.starsRow}>
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <Ionicons 
-                      key={i} 
-                      name={i <= review.rating ? 'star' : 'star-outline'} 
-                      size={14} 
-                      color={colors.orange} 
-                    />
-                  ))}
-                </View>
-              </View>
-              <Text style={styles.serviceTag}>{review.service}</Text>
-              <Text style={styles.comment}>"{review.comment}"</Text>
-              <Text style={styles.date}>{review.date}</Text>
-            </View>
+            <ReviewCard key={review.id} review={review} />
           ))
         )}
       </ScrollView>

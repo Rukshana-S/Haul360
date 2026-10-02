@@ -25,8 +25,8 @@ export default function ProfileScreen() {
   const mechanicName = user
     ? [user.firstName, user.lastName].filter(Boolean).join(' ').trim() ||
       user.mobile ||
-      mechanicProfile.name
-    : mechanicProfile.name;
+      'Mechanic'
+    : 'Mechanic';
 
   return (
     <Screen safeArea style={styles.container}>
