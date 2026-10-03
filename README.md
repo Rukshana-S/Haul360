@@ -1,56 +1,75 @@
-# Welcome to your Expo app 👋
+# Haul360 🚛⚡
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+> **Commercial Fleet Management, Roadside Breakdown Assistance & Dispatch Platform**  
+> Built with **React Native / Expo** (Frontend) and **Node.js / Express / MongoDB Atlas** (Backend).
 
-## Get started
+---
 
-1. Install dependencies
+## 📚 Team Documentation
 
-   ```bash
-   npm install
-   ```
+- 🗄️ **Database Schema & Collections Reference**: [docs/DATABASE_SCHEMA.md](docs/DATABASE_SCHEMA.md)
+- 🚀 **Team Setup & Local Development Guide**: [docs/TEAM_SETUP.md](docs/TEAM_SETUP.md)
 
-2. Start the app
+---
 
-   ```bash
-   npx expo start
-   ```
+## ⚡ Quick Start
 
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+### 1. Clone & Install Dependencies
 
 ```bash
-npm run reset-project
+# Clone the repository
+git clone https://github.com/Rukshana-S/Haul360.git
+cd Haul360
+
+# Install Root (Expo / React Native) dependencies
+npm install
+
+# Install Backend dependencies
+cd backend
+npm install
+cd ..
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### 2. Configure Environment
 
-### Other setup steps
+Copy backend template and configure your MongoDB Atlas URI:
+```bash
+cp backend/.env.example backend/.env
+```
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+### 3. Start Backend & Mobile App
 
-## Learn more
+**Terminal 1 — Backend Service:**
+```bash
+cd backend
+npm run dev
+# Running at http://localhost:5000 (Health Check: http://localhost:5000/api/health)
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+**Terminal 2 — Mobile Application:**
+```bash
+npx expo start
+# Scan the QR code using Expo Go on your Android physical phone!
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+---
 
-## Join the community
+## 🧪 Validation & Typechecks
 
-Join our community of developers creating universal apps.
+```bash
+# Frontend typecheck
+npx tsc --noEmit
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+# Backend typecheck
+cd backend
+npx tsc --noEmit
+cd ..
+
+# Expo configuration diagnosis
+npx expo-doctor
+```
+
+---
+
+## 📄 License
+ISC
