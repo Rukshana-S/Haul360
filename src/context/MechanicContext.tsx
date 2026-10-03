@@ -5,10 +5,14 @@ import {
   Review,
   MechanicProfileData,
   ServiceHistoryItem,
+  EarningTransaction,
+  EarningsSummary,
   mockRequests,
   mockRepairs,
   mockDetailedReviews,
   mockServiceHistory,
+  mockEarningsTransactions,
+  mockEarningsSummary,
   defaultMechanicProfile,
 } from '@/constants/mechanicMockData';
 import { AvailabilityStatus } from '@/components/mechanic/AvailabilitySelector';
@@ -18,6 +22,8 @@ interface MechanicContextType {
   repairs: RepairJob[];
   serviceHistory: ServiceHistoryItem[];
   reviews: Review[];
+  earningsSummary: EarningsSummary;
+  earningsTransactions: EarningTransaction[];
   profile: MechanicProfileData;
   availability: AvailabilityStatus;
   sosMode: boolean;
@@ -47,6 +53,8 @@ export const MechanicProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [repairs, setRepairs] = useState<RepairJob[]>(mockRepairs);
   const [serviceHistory, setServiceHistory] = useState<ServiceHistoryItem[]>(mockServiceHistory);
   const [reviews] = useState<Review[]>(mockDetailedReviews);
+  const [earningsTransactions] = useState<EarningTransaction[]>(mockEarningsTransactions);
+  const [earningsSummary] = useState<EarningsSummary>(mockEarningsSummary);
   const [profile, setProfile] = useState<MechanicProfileData>(defaultMechanicProfile);
   const [availability, setAvailability] = useState<AvailabilityStatus>('AVAILABLE');
   const [sosMode, setSosMode] = useState<boolean>(true);
@@ -56,7 +64,45 @@ export const MechanicProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const getRepairById = (id: string): RepairJob | undefined => {
-    return repairs.find((r) => r.id === id);
+    // 1. Search in active repairs
+    const foundRepair = repairs.find((r) => r.id === id);
+    if (foundRepair) return foundRepair;
+
+    // 2. Search in service history (completed jobs)
+    const foundHistory = serviceHistory.find((h) => h.id === id);
+    if (foundHistory) {
+      return {
+        id: foundHistory.id,
+        vehicle: `${foundHistory.vehicle} (${foundHistory.vehicleType})`,
+        driver: foundHistory.driver,
+        service: foundHistory.service,
+        status: 'Completed',
+        progress: 100,
+        location: foundHistory.location,
+        amount: foundHistory.amount,
+        startTime: 'Completed',
+        timeElapsed: 'Job Completed',
+      };
+    }
+
+    // 3. Search in requests matching id
+    const foundReq = requests.find((req) => req.id === id || `REP-${req.id.replace('REQ-', '')}` === id);
+    if (foundReq) {
+      return {
+        id: id.startsWith('REP-') ? id : `REP-${foundReq.id.replace('REQ-', '')}`,
+        vehicle: `${foundReq.vehicle} (${foundReq.vehicleType})`,
+        driver: foundReq.driver,
+        service: foundReq.service,
+        status: foundReq.status === 'COMPLETED' ? 'Completed' : 'Received',
+        progress: foundReq.status === 'COMPLETED' ? 100 : 15,
+        location: foundReq.location,
+        amount: foundReq.amount,
+        startTime: foundReq.timeRequested,
+        timeElapsed: foundReq.status === 'COMPLETED' ? 'Job Completed' : '0 mins elapsed',
+      };
+    }
+
+    return undefined;
   };
 
   const updateProfile = (updated: Partial<MechanicProfileData>) => {
@@ -195,6 +241,8 @@ export const MechanicProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       repairs,
       serviceHistory,
       reviews,
+      earningsSummary,
+      earningsTransactions,
       profile,
       availability,
       sosMode,
@@ -208,7 +256,17 @@ export const MechanicProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       getRequestById,
       getRepairById,
     }),
-    [requests, repairs, serviceHistory, reviews, profile, availability, sosMode]
+    [
+      requests,
+      repairs,
+      serviceHistory,
+      reviews,
+      earningsSummary,
+      earningsTransactions,
+      profile,
+      availability,
+      sosMode,
+    ]
   );
 
   return <MechanicContext.Provider value={value}>{children}</MechanicContext.Provider>;

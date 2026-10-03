@@ -61,10 +61,10 @@ const REPAIR_STAGES: Array<{
 
 export default function RepairDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { repairs, updateRepairStep, completeRepair } = useMechanic();
+  const { repairs, updateRepairStep, completeRepair, getRepairById } = useMechanic();
   const [localFeedback, setLocalFeedback] = useState<string | null>(null);
 
-  const repair = repairs.find((r) => r.id === id) || repairs[0];
+  const repair = getRepairById(id || '') || repairs.find((r) => r.id === id) || repairs[0];
 
   if (!repair) {
     return (

@@ -257,7 +257,11 @@ export default function MechanicRegistrationScreen() {
 
           <TouchableOpacity
             style={styles.blackButton}
-            onPress={() => router.replace('/auth/login?role=Mechanic' as any)}
+            onPress={() =>
+              router.replace(
+                `/auth/login?role=Mechanic&mobile=${encodeURIComponent(registeredUser?.mobile || form.mobile.replace(/\D/g, ''))}` as any
+              )
+            }
             activeOpacity={0.8}
           >
             <Text style={styles.blackButtonText}>Go to Login Screen →</Text>

@@ -21,14 +21,14 @@ import { useAuth } from '@/context/AuthContext';
 import { ApiError } from '@/services/api/types';
 
 export default function LoginScreen() {
-  const { role } = useLocalSearchParams<{ role: string }>();
+  const { role, mobile } = useLocalSearchParams<{ role?: string; mobile?: string }>();
   const displayRole = role || 'Driver';
 
   const { login } = useAuth();
 
   const [loginMethod, setLoginMethod] = useState<'mobile' | 'email'>('mobile');
-  const [mobileNumber, setMobileNumber] = useState('9876543210');
-  const [emailAddress, setEmailAddress] = useState('driver@haul360.com');
+  const [mobileNumber, setMobileNumber] = useState(mobile || '');
+  const [emailAddress, setEmailAddress] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);

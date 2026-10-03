@@ -489,12 +489,23 @@ export default function ProfileScreen() {
               <Ionicons name="wallet-outline" size={18} color={colors.navy} style={styles.sectionIcon} />
               <Text style={styles.sectionTitle}>Payout Account</Text>
             </View>
-            <View style={styles.defaultPill}>
-              <Text style={styles.defaultPillText}>Default</Text>
-            </View>
+            <TouchableOpacity
+              onPress={() => router.push('/mechanic/earnings')}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="View Earnings and Payouts"
+            >
+              <Text style={styles.editLink}>View Earnings</Text>
+            </TouchableOpacity>
           </View>
 
-          <View style={styles.payoutBox}>
+          <TouchableOpacity
+            style={styles.payoutBox}
+            onPress={() => router.push('/mechanic/earnings')}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Open Earnings screen"
+          >
             <View style={styles.payoutIconBox}>
               <Ionicons name="business-outline" size={20} color={colors.navy} />
             </View>
@@ -505,7 +516,8 @@ export default function ProfileScreen() {
             <View style={styles.instantBadge}>
               <Text style={styles.instantBadgeText}>Instant Pay</Text>
             </View>
-          </View>
+            <Ionicons name="chevron-forward" size={16} color="#94A3B8" style={{ marginLeft: 4 }} />
+          </TouchableOpacity>
         </View>
 
         {/* Logout Button */}

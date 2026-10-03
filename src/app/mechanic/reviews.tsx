@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,11 +15,21 @@ import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { useMechanic } from '@/context/MechanicContext';
 
+const RATING_FILTERS = ['All', '5 Star', '4 Star', '3 Star'] as const;
+type RatingFilter = (typeof RATING_FILTERS)[number];
+
 export default function ReviewsScreen() {
   const { reviews, profile } = useMechanic();
+  const [activeFilter, setActiveFilter] = useState<RatingFilter>('All');
 
   const totalReviewsCount = profile.totalReviews || 124;
   const ratingValue = profile.rating || 4.9;
+
+  const filteredReviews = useMemo(() => {
+    if (activeFilter === 'All') return reviews;
+    const targetRating = activeFilter === '5 Star' ? 5 : activeFilter === '4 Star' ? 4 : 3;
+    return reviews.filter((r) => r.rating === targetRating);
+  }, [reviews, activeFilter]);
 
   return (
     <Screen safeArea style={styles.container}>
@@ -63,7 +73,7 @@ export default function ReviewsScreen() {
                 { stars: 5, pct: '88%', label: '5★' },
                 { stars: 4, pct: '10%', label: '4★' },
                 { stars: 3, pct: '2%', label: '3★' },
-                { stars: 2, pct: '2%', label: '2★' },
+                { stars: 2, pct: '0%', label: '2★' },
                 { stars: 1, pct: '0%', label: '1★' },
               ] as const).map((row) => (
                 <View key={row.stars} style={styles.distRow}>
@@ -89,21 +99,49 @@ export default function ReviewsScreen() {
           </View>
         </View>
 
-        {/* Section Title */}
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Recent Driver Feedback</Text>
-          <Text style={styles.sectionSubtitle}>Showing latest {reviews.length} reviews</Text>
+        {/* Filter Chips Bar */}
+        <View style={styles.filterSection}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Driver Feedback</Text>
+            <Text style={styles.sectionSubtitle}>
+              {filteredReviews.length} {filteredReviews.length === 1 ? 'review' : 'reviews'}
+            </Text>
+          </View>
+
+          <View style={styles.filterRow}>
+            {RATING_FILTERS.map((f) => {
+              const isSelected = activeFilter === f;
+              const targetRating = f === '5 Star' ? 5 : f === '4 Star' ? 4 : 3;
+              const count =
+                f === 'All' ? reviews.length : reviews.filter((r) => r.rating === targetRating).length;
+
+              return (
+                <TouchableOpacity
+                  key={f}
+                  style={[styles.filterChip, isSelected && styles.filterChipActive]}
+                  onPress={() => setActiveFilter(f)}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Filter by ${f}`}
+                >
+                  <Text style={[styles.filterChipText, isSelected && styles.filterChipTextActive]}>
+                    {f} ({count})
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
 
         {/* Reviews List */}
-        {reviews.length === 0 ? (
+        {filteredReviews.length === 0 ? (
           <EmptyState
-            title="No reviews yet"
-            message="When drivers or fleets rate your completed repairs, feedback will be shown here."
+            title="No reviews found"
+            message={`There are no ${activeFilter} reviews in your recent history.`}
             iconName="star-outline"
           />
         ) : (
-          reviews.map((review) => (
+          filteredReviews.map((review) => (
             <ReviewCard key={review.id} review={review} />
           ))
         )}
@@ -154,7 +192,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     padding: spacing.md,
     borderRadius: 16,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     elevation: 1,
@@ -248,11 +286,14 @@ const styles = StyleSheet.create({
     color: colors.navy,
   },
 
+  filterSection: {
+    marginBottom: spacing.sm,
+  },
   sectionHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'baseline',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
     paddingHorizontal: 2,
   },
   sectionTitle: {
@@ -263,5 +304,31 @@ const styles = StyleSheet.create({
   sectionSubtitle: {
     fontSize: 11,
     color: '#64748B',
+  },
+  filterRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 4,
+  },
+  filterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 16,
+  },
+  filterChipActive: {
+    backgroundColor: colors.navy,
+    borderColor: colors.navy,
+  },
+  filterChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  filterChipTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
 });

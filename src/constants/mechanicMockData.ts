@@ -36,6 +36,31 @@ export interface Earning {
   date: string;
 }
 
+export interface EarningTransaction {
+  id: string;
+  jobId?: string;
+  vehicle?: string;
+  service: string;
+  amount: string;
+  rawAmount: number;
+  status: 'SETTLED' | 'PENDING' | 'PROCESSING';
+  date: string;
+  paymentMethod?: string;
+}
+
+export interface EarningsSummary {
+  today: string;
+  thisWeek: string;
+  thisMonth: string;
+  pendingSettlement: string;
+  dailyTrend: Array<{
+    day: string;
+    amount: string;
+    raw: number;
+    heightPct: number;
+  }>;
+}
+
 export interface Review {
   id: string;
   customer: string;
@@ -193,6 +218,91 @@ export const mockRepairs: RepairJob[] = [
     startTime: '10:00 AM',
     timeElapsed: '24 mins elapsed',
   }
+];
+
+export const mockEarningsSummary: EarningsSummary = {
+  today: '₹6,450',
+  thisWeek: '₹28,400',
+  thisMonth: '₹84,650',
+  pendingSettlement: '₹3,800',
+  dailyTrend: [
+    { day: 'Mon', amount: '₹3,800', raw: 3800, heightPct: 45 },
+    { day: 'Tue', amount: '₹5,200', raw: 5200, heightPct: 62 },
+    { day: 'Wed', amount: '₹4,150', raw: 4150, heightPct: 50 },
+    { day: 'Thu', amount: '₹6,450', raw: 6450, heightPct: 78 },
+    { day: 'Fri', amount: '₹8,200', raw: 8200, heightPct: 100 },
+    { day: 'Sat', amount: '₹5,600', raw: 5600, heightPct: 68 },
+    { day: 'Sun', amount: '₹6,450', raw: 6450, heightPct: 78 },
+  ],
+};
+
+export const mockEarningsTransactions: EarningTransaction[] = [
+  {
+    id: 'TXN-9041',
+    jobId: 'REP-8941',
+    vehicle: 'BharatBenz 2823C (28T Heavy Cargo)',
+    service: 'Air Brake Booster Leak & Valve Overhaul',
+    amount: '₹5,200',
+    rawAmount: 5200,
+    status: 'SETTLED',
+    date: 'Today, 04:45 PM',
+    paymentMethod: 'Haul360 Direct Fleet Settlement',
+  },
+  {
+    id: 'TXN-9022',
+    jobId: 'REQ-001',
+    vehicle: 'Tata Signa 4825.TK (25T Container)',
+    service: 'Severe airbrake pressure leak & steering lockup',
+    amount: '₹3,800',
+    rawAmount: 3800,
+    status: 'PENDING',
+    date: 'Today, 11:20 AM',
+    paymentMethod: 'Escrow Verification Pending',
+  },
+  {
+    id: 'TXN-8910',
+    jobId: 'REP-8910',
+    vehicle: 'Eicher Pro 6035 (Multi-axle Trailer)',
+    service: 'Alternator Cable Short Circuit & Fuse Replacement',
+    amount: '₹3,150',
+    rawAmount: 3150,
+    status: 'SETTLED',
+    date: 'Yesterday, 02:40 PM',
+    paymentMethod: 'Haul360 Direct Fleet Settlement',
+  },
+  {
+    id: 'TXN-8874',
+    jobId: 'REP-8874',
+    vehicle: 'Tata Prima 3530.K (Heavy Dumper)',
+    service: 'Clutch Slave Cylinder Hydraulic Bleed',
+    amount: '₹4,800',
+    rawAmount: 4800,
+    status: 'SETTLED',
+    date: '28 Sep 2026',
+    paymentMethod: 'Haul360 Direct Fleet Settlement',
+  },
+  {
+    id: 'TXN-8820',
+    jobId: 'REP-8820',
+    vehicle: 'Mahindra Blazo X 49 (49T Heavy Hauler)',
+    service: 'Engine Coolant Hose Rupture & Radiator Flush',
+    amount: '₹3,800',
+    rawAmount: 3800,
+    status: 'SETTLED',
+    date: '25 Sep 2026',
+    paymentMethod: 'Haul360 Direct Fleet Settlement',
+  },
+  {
+    id: 'TXN-8792',
+    jobId: 'REP-8792',
+    vehicle: 'Volvo FM 420 8x4 (Puller Tractor)',
+    service: 'Air Suspension Leveling Valve Calibration',
+    amount: '₹5,600',
+    rawAmount: 5600,
+    status: 'SETTLED',
+    date: '22 Sep 2026',
+    paymentMethod: 'Haul360 Direct Fleet Settlement',
+  },
 ];
 
 export const mockEarnings: Earning[] = [
