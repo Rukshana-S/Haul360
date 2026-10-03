@@ -42,6 +42,45 @@ export interface Review {
   rating: number;
   comment: string;
   date: string;
+  service?: string;
+}
+
+export interface MechanicProfileData {
+  firstName: string;
+  lastName: string;
+  mobile: string;
+  email: string;
+  workshopName: string;
+  workshopAddress: string;
+  city: string;
+  state: string;
+  pincode: string;
+  yearsOfExperience: string;
+  mechanicType: string;
+  verificationStatus: 'VERIFIED' | 'PENDING' | 'REJECTED';
+  certificateStatus: string;
+  rating: number;
+  totalReviews: number;
+  completedRepairsCount: number;
+  services: string[];
+  vehicleTypes: string[];
+  bankName: string;
+  bankAccountMasked: string;
+  coverageRadius: string;
+}
+
+export interface ServiceHistoryItem {
+  id: string;
+  vehicle: string;
+  vehicleType: string;
+  driver: string;
+  service: string;
+  date: string;
+  location: string;
+  amount: string;
+  rating: number;
+  status: 'COMPLETED' | 'SETTLED';
+  category: 'All' | 'Pneumatics' | 'Electrical' | 'Engine' | 'SOS';
 }
 
 export const mockRequests: MechanicRequest[] = [
@@ -166,6 +205,154 @@ export const mockReviews: Review[] = [
   { id: 'R-1', customer: 'Ramesh Transport Corp', rating: 5, comment: 'Very fast and professional service. Saved our trip!', date: 'Today' },
   { id: 'R-2', customer: 'Suresh Kumar', rating: 4, comment: 'Good knowledge of airbrakes. Reached on time.', date: 'Yesterday' },
 ];
+
+export const mockDetailedReviews: Review[] = [
+  {
+    id: 'REV-01',
+    customer: 'Ramesh Transport Corp (Fleet #402)',
+    rating: 5,
+    service: 'Air Brake Booster & Dual Valve Overhaul',
+    comment: 'Super fast roadside response near Shoolagiri toll. Diagnosed the airbrake pressure leak in 10 minutes and had our 25T container rolling safely.',
+    date: 'Today, 09:30 AM',
+  },
+  {
+    id: 'REV-02',
+    customer: 'Suresh Kumar (National Logistics)',
+    rating: 5,
+    service: 'Pneumatic Hose Rupture & Fitting',
+    comment: 'Expert mechanic. Arrived with full diagnostic OBD scanner and replaced pneumatic hose quickly on NH-48 corridor.',
+    date: 'Yesterday, 04:15 PM',
+  },
+  {
+    id: 'REV-03',
+    customer: 'Balwant Singh (Northern Express Freight)',
+    rating: 4,
+    service: 'BS-VI DEF Injector Diagnostic',
+    comment: 'Good knowledge of BS-VI DEF injector circuits. Cleared error codes and restored engine power on highway shoulder.',
+    date: '28 Sep 2026',
+  },
+  {
+    id: 'REV-04',
+    customer: 'Deccan Cargo Movers',
+    rating: 5,
+    service: '50T Hydraulic Lift & Hub Greasing',
+    comment: 'Handled 50T hydraulic jack lift and dual hub greasing seamlessly. Extremely professional and courteous.',
+    date: '24 Sep 2026',
+  },
+  {
+    id: 'REV-05',
+    customer: 'Gurvinder Singh (Express Logistics)',
+    rating: 5,
+    service: 'Alternator Belt Replacement',
+    comment: 'Saved our delivery timeline during a midnight alternator belt breakdown. Top quality workmanship.',
+    date: '20 Sep 2026',
+  },
+];
+
+export const mockServiceHistory: ServiceHistoryItem[] = [
+  {
+    id: 'REP-8941',
+    vehicle: 'BharatBenz 2823C',
+    vehicleType: '28T Heavy Cargo',
+    driver: 'Harpreet Sandhu (Punjab Roadways)',
+    service: 'Air Brake Booster Leak & Valve Overhaul',
+    date: 'Today, 04:30 PM',
+    location: 'NH-48 Km Stone 142 (Near Shoolagiri Toll)',
+    amount: '₹5,200',
+    rating: 5.0,
+    status: 'SETTLED',
+    category: 'Pneumatics',
+  },
+  {
+    id: 'REP-8910',
+    vehicle: 'Eicher Pro 6035',
+    vehicleType: 'Multi-axle Trailer',
+    driver: 'Amit Yadav (Balaji Logistics)',
+    service: 'Alternator Cable Short Circuit & Fuse Replacement',
+    date: 'Yesterday, 02:15 PM',
+    location: 'Bypass Road Truck Hub Km 89',
+    amount: '₹3,150',
+    rating: 4.8,
+    status: 'SETTLED',
+    category: 'Electrical',
+  },
+  {
+    id: 'REP-8874',
+    vehicle: 'Tata Prima 3530.K',
+    vehicleType: 'Heavy Dumper',
+    driver: 'Rajesh Singh (Express Haulage)',
+    service: 'Clutch Slave Cylinder Hydraulic Bleed',
+    date: '3 days ago',
+    location: 'NH-48 Expressway Flyover Margin',
+    amount: '₹4,800',
+    rating: 5.0,
+    status: 'SETTLED',
+    category: 'SOS',
+  },
+  {
+    id: 'REP-8820',
+    vehicle: 'Mahindra Blazo X 49',
+    vehicleType: '49T Heavy Hauler',
+    driver: 'Sanjay Deshmukh (Western Freight)',
+    service: 'Engine Coolant Hose Rupture & Radiator Flush',
+    date: '25 Sep 2026',
+    location: 'Logistics Park Gate 4, NH-48 Corridor',
+    amount: '₹3,800',
+    rating: 4.9,
+    status: 'SETTLED',
+    category: 'Engine',
+  },
+  {
+    id: 'REP-8792',
+    vehicle: 'Volvo FM 420 8x4',
+    vehicleType: 'Puller Tractor',
+    driver: 'Rajinder Kumar (Globe Trans)',
+    service: 'Air Suspension Leveling Valve Calibration',
+    date: '22 Sep 2026',
+    location: 'Highway Service Yard Km 104',
+    amount: '₹5,600',
+    rating: 5.0,
+    status: 'SETTLED',
+    category: 'Pneumatics',
+  },
+];
+
+export const defaultMechanicProfile: MechanicProfileData = {
+  firstName: 'Ramesh',
+  lastName: 'Verma',
+  mobile: '9876543210',
+  email: 'ramesh.verma@haul360.in',
+  workshopName: 'Verma Commercial Fleet Hub & Mobile Rescue',
+  workshopAddress: 'Shop 14, Haul360 Commercial Fleet Plaza, NH-48 Sector 34',
+  city: 'Gurugram',
+  state: 'Haryana',
+  pincode: '122001',
+  yearsOfExperience: '12+ Years',
+  mechanicType: 'Master Diesel & Pneumatics Specialist',
+  verificationStatus: 'VERIFIED',
+  certificateStatus: 'Certified Master Commercial Technician (CMCT-IV)',
+  rating: 4.9,
+  totalReviews: 124,
+  completedRepairsCount: 1420,
+  services: [
+    'Engine & Powertrain Diagnostics',
+    'Air Brakes & Pneumatic Overhaul',
+    'Heavy Electricals & Alternators',
+    'Hydraulic Steering & Suspension',
+    'Tyre Replacement & 50T Jacking',
+    'BS-VI DEF & Exhaust SCR Service'
+  ],
+  vehicleTypes: [
+    '16-22 Wheeler Multi-Axle',
+    'Heavy Dumpers & Tippers',
+    'Tractor Trailers & Pullers',
+    'LCVs & Cargo Vans',
+    'Commercial Buses'
+  ],
+  bankName: 'HDFC Bank Commercial A/c',
+  bankAccountMasked: '•••• •••• •••• 4029',
+  coverageRadius: '35 km Patrol Ring',
+};
 
 export const mechanicProfile = {
   name: 'Ramesh C. Verma',

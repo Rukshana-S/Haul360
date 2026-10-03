@@ -23,6 +23,7 @@ import {
   mockRepairs,
 } from '@/constants/mechanicMockData';
 import { useAuth } from '@/context/AuthContext';
+import { useMechanic } from '@/context/MechanicContext';
 import { StatCard } from '@/components/mechanic/StatCard';
 import { ServiceRequestCard } from '@/components/mechanic/ServiceRequestCard';
 import { RepairCard } from '@/components/mechanic/RepairCard';
@@ -34,9 +35,8 @@ import {
 
 export default function MechanicDashboardScreen() {
   const { user, isLoading, logout } = useAuth();
-  const [availability, setAvailability] = useState<AvailabilityStatus>('AVAILABLE');
+  const { availability, setAvailability, sosMode, setSosMode } = useMechanic();
   const [availabilityModalVisible, setAvailabilityModalVisible] = useState(false);
-  const [sosMode, setSosMode] = useState(true);
 
   if (isLoading) {
     return (

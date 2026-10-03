@@ -2,13 +2,28 @@ import React, { createContext, useContext, useState, useMemo } from 'react';
 import {
   MechanicRequest,
   RepairJob,
+  Review,
+  MechanicProfileData,
+  ServiceHistoryItem,
   mockRequests,
   mockRepairs,
+  mockDetailedReviews,
+  mockServiceHistory,
+  defaultMechanicProfile,
 } from '@/constants/mechanicMockData';
+import { AvailabilityStatus } from '@/components/mechanic/AvailabilitySelector';
 
 interface MechanicContextType {
   requests: MechanicRequest[];
   repairs: RepairJob[];
+  serviceHistory: ServiceHistoryItem[];
+  reviews: Review[];
+  profile: MechanicProfileData;
+  availability: AvailabilityStatus;
+  sosMode: boolean;
+  setAvailability: (status: AvailabilityStatus) => void;
+  setSosMode: (mode: boolean) => void;
+  updateProfile: (updated: Partial<MechanicProfileData>) => void;
   acceptRequest: (requestId: string) => string;
   rejectRequest: (requestId: string) => void;
   updateRepairStep: (repairId: string, stepIndex: number) => void;
@@ -30,6 +45,11 @@ const MechanicContext = createContext<MechanicContextType | undefined>(undefined
 export const MechanicProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [requests, setRequests] = useState<MechanicRequest[]>(mockRequests);
   const [repairs, setRepairs] = useState<RepairJob[]>(mockRepairs);
+  const [serviceHistory, setServiceHistory] = useState<ServiceHistoryItem[]>(mockServiceHistory);
+  const [reviews] = useState<Review[]>(mockDetailedReviews);
+  const [profile, setProfile] = useState<MechanicProfileData>(defaultMechanicProfile);
+  const [availability, setAvailability] = useState<AvailabilityStatus>('AVAILABLE');
+  const [sosMode, setSosMode] = useState<boolean>(true);
 
   const getRequestById = (id: string): MechanicRequest | undefined => {
     return requests.find((r) => r.id === id);
@@ -37,6 +57,13 @@ export const MechanicProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const getRepairById = (id: string): RepairJob | undefined => {
     return repairs.find((r) => r.id === id);
+  };
+
+  const updateProfile = (updated: Partial<MechanicProfileData>) => {
+    setProfile((prev) => ({
+      ...prev,
+      ...updated,
+    }));
   };
 
   const acceptRequest = (requestId: string): string => {
@@ -95,16 +122,38 @@ export const MechanicProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setRepairs((prev) =>
       prev.map((r) => {
         if (r.id === repairId) {
+          const isCompleted = stepIndex === REPAIR_STAGES.length - 1;
           return {
             ...r,
             status: stage.status,
             progress: stage.progress,
-            timeElapsed: stepIndex === REPAIR_STAGES.length - 1 ? 'Job Completed' : r.timeElapsed,
+            timeElapsed: isCompleted ? 'Job Completed' : r.timeElapsed,
           };
         }
         return r;
       })
     );
+
+    // If completed, add to settled service history
+    if (stepIndex === REPAIR_STAGES.length - 1) {
+      const rep = repairs.find((r) => r.id === repairId);
+      if (rep && !serviceHistory.some((h) => h.id === rep.id)) {
+        const historyEntry: ServiceHistoryItem = {
+          id: rep.id,
+          vehicle: rep.vehicle,
+          vehicleType: 'Heavy Commercial',
+          driver: rep.driver,
+          service: rep.service,
+          date: 'Just now',
+          location: rep.location,
+          amount: rep.amount,
+          rating: 5.0,
+          status: 'SETTLED',
+          category: 'All',
+        };
+        setServiceHistory((prev) => [historyEntry, ...prev]);
+      }
+    }
   };
 
   const completeRepair = (repairId: string) => {
@@ -121,12 +170,37 @@ export const MechanicProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return r;
       })
     );
+    const rep = repairs.find((r) => r.id === repairId);
+    if (rep && !serviceHistory.some((h) => h.id === rep.id)) {
+      const historyEntry: ServiceHistoryItem = {
+        id: rep.id,
+        vehicle: rep.vehicle,
+        vehicleType: 'Heavy Commercial',
+        driver: rep.driver,
+        service: rep.service,
+        date: 'Just now',
+        location: rep.location,
+        amount: rep.amount,
+        rating: 5.0,
+        status: 'SETTLED',
+        category: 'All',
+      };
+      setServiceHistory((prev) => [historyEntry, ...prev]);
+    }
   };
 
   const value = useMemo(
     () => ({
       requests,
       repairs,
+      serviceHistory,
+      reviews,
+      profile,
+      availability,
+      sosMode,
+      setAvailability,
+      setSosMode,
+      updateProfile,
       acceptRequest,
       rejectRequest,
       updateRepairStep,
@@ -134,7 +208,7 @@ export const MechanicProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       getRequestById,
       getRepairById,
     }),
-    [requests, repairs]
+    [requests, repairs, serviceHistory, reviews, profile, availability, sosMode]
   );
 
   return <MechanicContext.Provider value={value}>{children}</MechanicContext.Provider>;
@@ -149,3 +223,4 @@ export const useMechanic = (): MechanicContextType => {
 };
 
 export default MechanicContext;
+
