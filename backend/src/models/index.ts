@@ -5,3 +5,8 @@ export * from './organizations';
 export * from './transportOffices';
 export * from './vehicles';
 export * from './documents';
+export * from './serviceRequests';
+export * from './repairs';
+export * from './earnings';
+export * from './reviews';
+export * from './sosEvents';
