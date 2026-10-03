@@ -8,6 +8,7 @@ export interface AuthTokenPayload {
 
 export interface AuthenticatedUser {
   userId: string;
+  id?: string;
   role: UserRole;
 }
 
@@ -22,6 +23,20 @@ export interface RegisterDTO {
   email?: string;
   password: string;
   role: UserRole;
+  workshopName?: string;
+  workshopAddress?: string;
+  address?: string;
+  landmark?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  yearsOfExperience?: number;
+  experienceYears?: number;
+  specializations?: string[];
+  vehicleTypes?: string[];
+  serviceRadiusKm?: number;
+  coverageRadius?: string;
+  support247?: boolean;
 }
 
 export interface LoginDTO {

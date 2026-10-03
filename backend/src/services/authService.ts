@@ -123,7 +123,7 @@ export class AuthService {
       try {
         await session.withTransaction(async () => {
           await usersCollection.insertOne(userDoc, { session });
-          await this.createRoleProfile(dto.role, newUserId, fullName, cleanMobile, cleanEmail || '', now, session);
+          await this.createRoleProfile(dto.role, newUserId, fullName, cleanMobile, cleanEmail || '', now, dto, session);
         });
       } catch (txError) {
         throw txError;
@@ -134,7 +134,7 @@ export class AuthService {
       // Fallback with programmatic rollback
       await usersCollection.insertOne(userDoc);
       try {
-        await this.createRoleProfile(dto.role, newUserId, fullName, cleanMobile, cleanEmail || '', now);
+        await this.createRoleProfile(dto.role, newUserId, fullName, cleanMobile, cleanEmail || '', now, dto);
       } catch (profileError) {
         // Rollback created user on role profile failure
         await usersCollection.deleteOne({ _id: newUserId });
@@ -166,6 +166,7 @@ export class AuthService {
     mobile: string,
     email: string,
     now: Date,
+    dto?: RegisterDTO,
     session?: any
   ): Promise<void> {
     const options = session ? { session } : {};
@@ -191,28 +192,62 @@ export class AuthService {
       }
 
       case 'mechanic': {
+        const defaultWorkshopName = dto?.workshopName || (dto?.firstName ? `${dto.firstName}'s Garage & Fleet Care` : 'Commercial Fleet Care');
+        const defaultAddress = dto?.workshopAddress || dto?.address || 'NH-48 Corridor';
+        const defaultCity = dto?.city || 'Gurugram';
+        const defaultState = dto?.state || 'Haryana';
+        const defaultPincode = dto?.pincode || '122001';
+        const expYears = dto?.yearsOfExperience || dto?.experienceYears || 5;
+
         const mechanicDoc: IMechanic = {
           userId,
           fullName,
           mobile,
           email,
-          experienceYears: 0,
+          experienceYears: expYears,
           workshopDetails: {
-            workshopName: '',
-            address: '',
-            city: '',
-            state: '',
-            pincode: '',
+            workshopName: defaultWorkshopName,
+            address: defaultAddress,
+            workshopAddress: defaultAddress,
+            city: defaultCity,
+            state: defaultState,
+            pincode: defaultPincode,
           },
           serviceDetails: {
-            vehicleTypes: [],
-            availableFrom: '09:00',
-            availableTo: '19:00',
-            mechanicType: 'General',
+            workshopName: defaultWorkshopName,
+            workshopAddress: defaultAddress,
+            city: defaultCity,
+            state: defaultState,
+            pincode: defaultPincode,
+            vehicleTypes: dto?.vehicleTypes || [
+              '16-22 Wheeler Multi-Axle',
+              'Heavy Dumpers & Tippers',
+              'LCVs & Cargo Vans',
+            ],
+            services: dto?.specializations?.length
+              ? dto.specializations
+              : [
+                  'Engine & Powertrain Diagnostics',
+                  'Air Brakes & Pneumatic Overhaul',
+                  'Heavy Electricals & Alternators',
+                  'Hydraulic Steering & Suspension',
+                ],
+            serviceCategories: dto?.specializations?.length
+              ? dto.specializations
+              : [
+                  'Engine & Powertrain Diagnostics',
+                  'Air Brakes & Pneumatic Overhaul',
+                ],
+            coverageRadius: dto?.coverageRadius || `${dto?.serviceRadiusKm || 35} km Patrol Ring`,
+            serviceRadiusKm: dto?.serviceRadiusKm || 35,
+            availableFrom: '08:00',
+            availableTo: '22:00',
+            mechanicType: 'General Heavy Commercial',
           },
-          availabilityStatus: 'offline',
+          availability: 'AVAILABLE',
+          sosMode: dto?.support247 !== undefined ? Boolean(dto.support247) : true,
           verificationStatus: 'pending',
-          rating: 0,
+          rating: 4.9,
           totalReviews: 0,
           totalCompletedRepairs: 0,
           createdAt: now,
