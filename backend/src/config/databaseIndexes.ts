@@ -6,6 +6,11 @@ import {
   getTransportOfficesCollection,
   getVehiclesCollection,
   getDocumentsCollection,
+  getServiceRequestsCollection,
+  getRepairsCollection,
+  getEarningsCollection,
+  getReviewsCollection,
+  getSosEventsCollection,
 } from '../models';
 
 /**
@@ -36,7 +41,7 @@ export const initializeDatabaseIndexes = async (): Promise<void> => {
     const mechanicsCollection = getMechanicsCollection();
     await mechanicsCollection.createIndexes([
       { key: { userId: 1 }, unique: true, name: 'idx_mechanics_userId_unique' },
-      { key: { availabilityStatus: 1 }, name: 'idx_mechanics_availabilityStatus' },
+      { key: { availability: 1 }, name: 'idx_mechanics_availability' },
       { key: { 'workshopDetails.city': 1 }, name: 'idx_mechanics_city' },
       { key: { 'serviceDetails.vehicleTypes': 1 }, name: 'idx_mechanics_vehicleTypes' },
     ]);
@@ -71,6 +76,50 @@ export const initializeDatabaseIndexes = async (): Promise<void> => {
       { key: { documentType: 1 }, name: 'idx_documents_documentType' },
       { key: { verificationStatus: 1 }, name: 'idx_documents_verificationStatus' },
       { key: { userId: 1, documentType: 1 }, name: 'idx_documents_userId_documentType' },
+    ]);
+
+    // 8. Service Requests Collection Indexes
+    const serviceRequestsCollection = getServiceRequestsCollection();
+    await serviceRequestsCollection.createIndexes([
+      { key: { requestId: 1 }, unique: true, name: 'idx_serviceRequests_requestId_unique' },
+      { key: { status: 1 }, name: 'idx_serviceRequests_status' },
+      { key: { assignedMechanicId: 1 }, name: 'idx_serviceRequests_assignedMechanicId' },
+      { key: { isEmergency: -1, urgency: 1, createdAt: -1 }, name: 'idx_serviceRequests_priority' },
+    ]);
+
+    // 9. Repairs Collection Indexes
+    const repairsCollection = getRepairsCollection();
+    await repairsCollection.createIndexes([
+      { key: { repairId: 1 }, unique: true, name: 'idx_repairs_repairId_unique' },
+      { key: { mechanicId: 1 }, name: 'idx_repairs_mechanicId' },
+      { key: { status: 1 }, name: 'idx_repairs_status' },
+      { key: { requestId: 1 }, name: 'idx_repairs_requestId' },
+    ]);
+
+    // 10. Earnings Collection Indexes
+    const earningsCollection = getEarningsCollection();
+    await earningsCollection.createIndexes([
+      { key: { transactionId: 1 }, unique: true, name: 'idx_earnings_transactionId_unique' },
+      { key: { mechanicId: 1 }, name: 'idx_earnings_mechanicId' },
+      { key: { repairId: 1 }, name: 'idx_earnings_repairId' },
+      { key: { status: 1 }, name: 'idx_earnings_status' },
+      { key: { createdAt: -1 }, name: 'idx_earnings_createdAt' },
+    ]);
+
+    // 11. Reviews Collection Indexes
+    const reviewsCollection = getReviewsCollection();
+    await reviewsCollection.createIndexes([
+      { key: { reviewId: 1 }, unique: true, name: 'idx_reviews_reviewId_unique' },
+      { key: { mechanicId: 1 }, name: 'idx_reviews_mechanicId' },
+      { key: { rating: 1 }, name: 'idx_reviews_rating' },
+    ]);
+
+    // 12. SOS Events Collection Indexes
+    const sosEventsCollection = getSosEventsCollection();
+    await sosEventsCollection.createIndexes([
+      { key: { sosId: 1 }, unique: true, name: 'idx_sosEvents_sosId_unique' },
+      { key: { mechanicId: 1 }, name: 'idx_sosEvents_mechanicId' },
+      { key: { status: 1 }, name: 'idx_sosEvents_status' },
     ]);
 
     console.log('✅ Database indexes initialized successfully.');

@@ -2,6 +2,7 @@ import { createApp } from './app';
 import { config } from './config/env';
 import { connectDatabase, closeDatabase } from './config/database';
 import { initializeDatabaseIndexes } from './config/databaseIndexes';
+import { runDatabaseMigrations } from './config/migrations';
 
 const startServer = async (): Promise<void> => {
   try {
@@ -9,7 +10,10 @@ const startServer = async (): Promise<void> => {
     console.log('Connecting to MongoDB Atlas...');
     await connectDatabase();
 
-    // 2. Initialize Database Indexes
+    // 2. Run Database Migrations (Canonical Schema Consolidation)
+    await runDatabaseMigrations();
+
+    // 3. Initialize Database Indexes
     await initializeDatabaseIndexes();
 
     // 3. Initialize Express application
