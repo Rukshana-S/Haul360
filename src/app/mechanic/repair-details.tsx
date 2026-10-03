@@ -94,14 +94,18 @@ export default function RepairDetailsScreen() {
   const safeStageIndex = currentStageIndex === -1 ? 0 : currentStageIndex;
   const isCompleted = repair.status === 'Completed';
 
-  const handleNextStage = () => {
-    if (safeStageIndex < REPAIR_STAGES.length - 2) {
-      const nextIndex = safeStageIndex + 1;
-      updateRepairStep(repair.id, nextIndex);
-      setLocalFeedback(`Stage updated: ${REPAIR_STAGES[nextIndex].label}`);
-    } else if (safeStageIndex === REPAIR_STAGES.length - 2) {
-      completeRepair(repair.id);
-      setLocalFeedback('Repair successfully finalized and signed off!');
+  const handleNextStage = async () => {
+    try {
+      if (safeStageIndex < REPAIR_STAGES.length - 2) {
+        const nextIndex = safeStageIndex + 1;
+        await updateRepairStep(repair.id, nextIndex);
+        setLocalFeedback(`Stage updated: ${REPAIR_STAGES[nextIndex].label}`);
+      } else if (safeStageIndex === REPAIR_STAGES.length - 2) {
+        await completeRepair(repair.id);
+        setLocalFeedback('Repair successfully finalized and signed off!');
+      }
+    } catch (err: any) {
+      setLocalFeedback(err?.message || 'Unable to update repair stage. Please try again.');
     }
   };
 

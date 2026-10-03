@@ -57,6 +57,7 @@ export default function EditProfileScreen() {
   const [selectedVehicleTypes, setSelectedVehicleTypes] = useState<string[]>(profile.vehicleTypes || []);
 
   const [isSaved, setIsSaved] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const toggleService = (service: string) => {
@@ -71,7 +72,7 @@ export default function EditProfileScreen() {
     );
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!firstName.trim()) {
       setErrorMsg('Please enter your first name.');
       return;
@@ -82,30 +83,36 @@ export default function EditProfileScreen() {
     }
 
     setErrorMsg(null);
+    setIsSubmitting(true);
 
-    updateProfile({
-      firstName: firstName.trim(),
-      lastName: lastName.trim(),
-      email: email.trim(),
-      mobile: mobile.trim(),
-      workshopName: workshopName.trim(),
-      workshopAddress: workshopAddress.trim(),
-      city: city.trim(),
-      state: state.trim(),
-      pincode: pincode.trim(),
-      yearsOfExperience: yearsOfExperience.trim(),
-      mechanicType: mechanicType.trim(),
-      coverageRadius: coverageRadius.trim(),
-      services: selectedServices.length > 0 ? selectedServices : profile.services,
-      vehicleTypes: selectedVehicleTypes.length > 0 ? selectedVehicleTypes : profile.vehicleTypes,
-    });
+    try {
+      await updateProfile({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: email.trim(),
+        mobile: mobile.trim(),
+        workshopName: workshopName.trim(),
+        workshopAddress: workshopAddress.trim(),
+        city: city.trim(),
+        state: state.trim(),
+        pincode: pincode.trim(),
+        yearsOfExperience: yearsOfExperience.trim(),
+        mechanicType: mechanicType.trim(),
+        coverageRadius: coverageRadius.trim(),
+        services: selectedServices.length > 0 ? selectedServices : profile.services,
+        vehicleTypes: selectedVehicleTypes.length > 0 ? selectedVehicleTypes : profile.vehicleTypes,
+      });
 
-    setIsSaved(true);
-
-    setTimeout(() => {
-      setIsSaved(false);
-      router.back();
-    }, 1200);
+      setIsSaved(true);
+      setTimeout(() => {
+        setIsSaved(false);
+        router.back();
+      }, 1200);
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Unable to update profile. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -383,14 +390,22 @@ export default function EditProfileScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.saveBtn}
+            style={[styles.saveBtn, isSubmitting && { opacity: 0.7 }]}
             onPress={handleSave}
+            disabled={isSubmitting}
             activeOpacity={0.8}
             accessibilityRole="button"
             accessibilityLabel="Save profile changes"
           >
-            <Ionicons name="checkmark" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
-            <Text style={styles.saveBtnText}>Save Changes</Text>
+            <Ionicons
+              name={isSubmitting ? 'sync' : 'checkmark'}
+              size={18}
+              color="#FFFFFF"
+              style={{ marginRight: 6 }}
+            />
+            <Text style={styles.saveBtnText}>
+              {isSubmitting ? 'Saving...' : 'Save Changes'}
+            </Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

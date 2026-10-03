@@ -31,7 +31,10 @@ export default function ServiceHistoryScreen() {
 
   const totalSettledAmount = useMemo(() => {
     return serviceHistory.reduce((acc, curr) => {
-      const numeric = parseInt(curr.amount.replace(/[^0-9]/g, ''), 10) || 0;
+      const numeric =
+        typeof curr.amount === 'number'
+          ? curr.amount
+          : parseInt(String(curr.amount).replace(/[^0-9]/g, ''), 10) || 0;
       return acc + numeric;
     }, 0);
   }, [serviceHistory]);
@@ -154,7 +157,11 @@ export default function ServiceHistoryScreen() {
                   <Text style={styles.vehicleSub}>{job.driver}</Text>
                 </View>
                 <View style={styles.priceInfo}>
-                  <Text style={styles.priceText}>{job.amount}</Text>
+                  <Text style={styles.priceText}>
+                    {typeof job.amount === 'number'
+                      ? `₹${job.amount.toLocaleString('en-IN')}`
+                      : job.amount}
+                  </Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
                     <Ionicons name="star" size={11} color={colors.orange} style={{ marginRight: 2 }} />
                     <Text style={styles.ratingText}>{job.rating.toFixed(1)}</Text>

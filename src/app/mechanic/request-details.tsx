@@ -44,21 +44,21 @@ export default function RequestDetailsScreen() {
     );
   }
 
-  const isEmergency = !!req.isEmergency;
-  const isPending = req.status === 'PENDING';
-  const isAccepted = req.status === 'ACCEPTED';
-  const isRejected = req.status === 'REJECTED';
+  const isEmergency = !!req.isEmergency || req.urgency === 'SOS';
+  const isPending = req.status === 'PENDING' || req.status === 'Pending';
+  const isAccepted = req.status === 'ACCEPTED' || req.status === 'Accepted';
+  const isRejected = req.status === 'REJECTED' || req.status === 'Rejected';
 
-  const handleAccept = () => {
-    const createdRepairId = acceptRequest(req.id);
+  const handleAccept = async () => {
+    const createdRepairId = await acceptRequest(req.id);
     setLocalFeedback('Request accepted! Routing to active repair workspace...');
     setTimeout(() => {
       router.push(`/mechanic/repair-details?id=${createdRepairId}` as any);
     }, 400);
   };
 
-  const handleReject = () => {
-    rejectRequest(req.id);
+  const handleReject = async () => {
+    await rejectRequest(req.id);
     setLocalFeedback('Request declined. Returning to requests queue...');
     setTimeout(() => {
       router.push('/mechanic/requests');
