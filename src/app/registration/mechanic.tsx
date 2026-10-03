@@ -28,14 +28,14 @@ export default function MechanicRegistrationScreen() {
   const [registeredUser, setRegisteredUser] = useState<RegisteredUser | null>(null);
 
   const [form, setForm] = useState({
-    name: 'Ramesh Chandra Verma',
-    mobile: '9876543210',
-    email: 'ramesh.verma@example.com',
+    name: '',
+    mobile: '',
+    email: '',
     password: '',
-    aadhaar: '4521 8934 1029',
-    pan: 'ABCDE1234F',
-    address: 'Shop 14, Haul360 Commercial Fleet Plaza',
-    landmark: 'NH-48 Km Stone 42, Opposite Toll Post',
+    aadhaar: '',
+    pan: '',
+    address: '',
+    landmark: '',
     specialization: {
       heavy: true,
       lcv: true,
@@ -80,10 +80,15 @@ export default function MechanicRegistrationScreen() {
     const firstName = nameParts[0];
     const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : undefined;
 
+    const specializationsList: string[] = [];
+    if (form.specialization.heavy) specializationsList.push('16-22 Wheeler Multi-Axle');
+    if (form.specialization.lcv) specializationsList.push('LCVs & Cargo Vans');
+    if (form.specialization.reefer) specializationsList.push('Refrigerated Containers');
+    if (form.specialization.tipper) specializationsList.push('Heavy Dumpers & Tippers');
+
     setIsSubmitting(true);
 
     try {
-      // Send ONLY supported authentication fields (No Aadhaar/PAN in this phase)
       const response = await authApi.register({
         firstName,
         lastName,
@@ -91,6 +96,10 @@ export default function MechanicRegistrationScreen() {
         email: form.email.trim() || undefined,
         password: form.password,
         role: 'mechanic',
+        workshopName: form.address.trim() ? `${firstName}'s Workshop` : `${firstName}'s Fleet Care`,
+        workshopAddress: form.address.trim() || 'NH-48 Corridor',
+        specializations: specializationsList,
+        support247: form.support247,
       });
 
       if (response.success && response.data?.user) {

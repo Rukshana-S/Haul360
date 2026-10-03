@@ -3,29 +3,61 @@ export interface MechanicRequest {
   vehicle: string;
   vehicleType: string;
   driver: string;
+  driverName?: string;
+  driverPhone?: string;
   service: string;
+  issue?: string;
   distance: string;
   location: string;
   amount: string;
-  status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'COMPLETED';
+  estimatedCost?: number;
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'COMPLETED' | 'Pending' | 'Accepted' | 'Rejected' | 'In Progress' | 'Completed';
   isEmergency?: boolean;
+  urgency?: string;
   isScheduled?: boolean;
   scheduledTime?: string;
+  scheduledDate?: string;
   description?: string;
   timeRequested: string;
 }
 
 export interface RepairJob {
   id: string;
+  repairId?: string;
+  requestId?: string;
   vehicle: string;
+  vehicleType?: string;
+  vehicleNumber?: string;
   driver: string;
+  driverPhone?: string;
   service: string;
+  issue?: string;
   status: 'Received' | 'Diagnosing' | 'Repairing' | 'Ready' | 'Completed';
   progress: number;
   location: string;
   amount: string;
   startTime: string;
   timeElapsed: string;
+  currentStep?: number;
+  steps?: Array<{
+    status: string;
+    progress: number;
+    completed: boolean;
+  }>;
+  parts?: Array<{
+    name: string;
+    partNumber?: string;
+    quantity: number;
+    cost: number;
+  }>;
+  laborCost?: number;
+  partsCost?: number;
+  totalCost?: number;
+  arrivedAt?: string;
+  diagnosedAt?: string;
+  startedAt?: string;
+  readyAt?: string;
+  completedAt?: string;
 }
 
 export interface Earning {
@@ -39,13 +71,17 @@ export interface Earning {
 export interface EarningTransaction {
   id: string;
   jobId?: string;
+  repairId?: string;
   vehicle?: string;
   service: string;
   amount: string;
   rawAmount: number;
-  status: 'SETTLED' | 'PENDING' | 'PROCESSING';
+  status: 'SETTLED' | 'PENDING' | 'PROCESSING' | 'Settled' | 'Pending';
   date: string;
+  time?: string;
+  type?: string;
   paymentMethod?: string;
+  paymentMode?: string;
 }
 
 export interface EarningsSummary {
@@ -53,6 +89,7 @@ export interface EarningsSummary {
   thisWeek: string;
   thisMonth: string;
   pendingSettlement: string;
+  completedJobsCount?: number;
   dailyTrend: Array<{
     day: string;
     amount: string;
@@ -64,10 +101,15 @@ export interface EarningsSummary {
 export interface Review {
   id: string;
   customer: string;
+  reviewerName?: string;
   rating: number;
   comment: string;
   date: string;
   service?: string;
+  driverRole?: string;
+  vehicleType?: string;
+  serviceCategory?: string;
+  tags?: string[];
 }
 
 export interface MechanicProfileData {
@@ -96,16 +138,20 @@ export interface MechanicProfileData {
 
 export interface ServiceHistoryItem {
   id: string;
+  repairId?: string;
   vehicle: string;
   vehicleType: string;
   driver: string;
   service: string;
+  serviceCategory?: string;
   date: string;
+  time?: string;
   location: string;
-  amount: string;
+  amount: string | number;
+  rawAmount?: number;
   rating: number;
-  status: 'COMPLETED' | 'SETTLED';
-  category: 'All' | 'Pneumatics' | 'Electrical' | 'Engine' | 'SOS';
+  status: 'COMPLETED' | 'SETTLED' | 'Completed';
+  category?: 'All' | 'Pneumatics' | 'Electrical' | 'Engine' | 'SOS';
 }
 
 export const mockRequests: MechanicRequest[] = [
@@ -428,22 +474,22 @@ export const mockServiceHistory: ServiceHistoryItem[] = [
 ];
 
 export const defaultMechanicProfile: MechanicProfileData = {
-  firstName: 'Ramesh',
-  lastName: 'Verma',
-  mobile: '9876543210',
-  email: 'ramesh.verma@haul360.in',
-  workshopName: 'Verma Commercial Fleet Hub & Mobile Rescue',
-  workshopAddress: 'Shop 14, Haul360 Commercial Fleet Plaza, NH-48 Sector 34',
+  firstName: '',
+  lastName: '',
+  mobile: '',
+  email: '',
+  workshopName: 'Commercial Fleet Hub',
+  workshopAddress: 'NH-48 Corridor',
   city: 'Gurugram',
   state: 'Haryana',
   pincode: '122001',
-  yearsOfExperience: '12+ Years',
-  mechanicType: 'Master Diesel & Pneumatics Specialist',
-  verificationStatus: 'VERIFIED',
-  certificateStatus: 'Certified Master Commercial Technician (CMCT-IV)',
+  yearsOfExperience: '5+ Years',
+  mechanicType: 'Commercial Fleet Specialist',
+  verificationStatus: 'PENDING',
+  certificateStatus: 'Certified Commercial Technician',
   rating: 4.9,
-  totalReviews: 124,
-  completedRepairsCount: 1420,
+  totalReviews: 24,
+  completedRepairsCount: 140,
   services: [
     'Engine & Powertrain Diagnostics',
     'Air Brakes & Pneumatic Overhaul',
@@ -459,16 +505,16 @@ export const defaultMechanicProfile: MechanicProfileData = {
     'LCVs & Cargo Vans',
     'Commercial Buses'
   ],
-  bankName: 'HDFC Bank Commercial A/c',
+  bankName: 'Commercial Account',
   bankAccountMasked: '•••• •••• •••• 4029',
   coverageRadius: '35 km Patrol Ring',
 };
 
 export const mechanicProfile = {
-  name: 'Ramesh C. Verma',
-  title: 'Master Diesel & Airbrake Specialist',
+  name: 'Mechanic Partner',
+  title: 'Commercial Fleet Specialist',
   rating: 4.9,
-  repairs: '280+ roadside repairs',
+  repairs: '140+ roadside repairs',
   hub: 'NH-48 Sector 34 Hub',
   stats: {
     requests: { today: 14, new: 3 },

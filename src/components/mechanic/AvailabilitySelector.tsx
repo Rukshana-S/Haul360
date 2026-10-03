@@ -54,14 +54,16 @@ export const AvailabilitySelector: React.FC<AvailabilitySelectorProps> = ({
 }) => {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <TouchableOpacity
-        style={styles.overlay}
-        activeOpacity={1}
-        onPress={onClose}
-        accessibilityRole="button"
-        accessibilityLabel="Close availability selector"
-      >
-        <TouchableOpacity style={styles.modalCard} activeOpacity={1} onPress={(e) => e.stopPropagation()}>
+      <View style={styles.overlay}>
+        <TouchableOpacity
+          style={StyleSheet.absoluteFill}
+          activeOpacity={1}
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel="Close availability selector"
+        />
+
+        <View style={styles.modalCard}>
           <View style={styles.modalHeader}>
             <View>
               <Text style={styles.modalTitle}>Mechanic Availability</Text>
@@ -112,8 +114,8 @@ export const AvailabilitySelector: React.FC<AvailabilitySelectorProps> = ({
               );
             })}
           </View>
-        </TouchableOpacity>
-      </TouchableOpacity>
+        </View>
+      </View>
     </Modal>
   );
 };
