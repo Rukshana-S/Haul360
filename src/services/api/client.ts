@@ -35,7 +35,7 @@ const getDevServerHostIp = (): string | null => {
  * - Web and Localhost
  */
 export const getApiBaseUrl = (): string => {
-  const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
+  const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim().replace(/\s+/g, '');
   const devHostIp = getDevServerHostIp();
 
   let resolvedUrl = envUrl || '';

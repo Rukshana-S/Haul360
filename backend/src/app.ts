@@ -28,6 +28,25 @@ export const createApp = (): Application => {
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
+  // Root Welcome & Health Check Routes
+  app.get('/', (_req, res) => {
+    res.status(200).json({
+      success: true,
+      message: 'Haul360 Backend API Server is running',
+      version: '1.0.0',
+      routes: {
+        health: '/api/health',
+        auth: '/api/auth',
+        mechanic: '/api/mechanic',
+      },
+    });
+  });
+
+  app.get('/health', (_req, res, next) => {
+    // Forward /health to the api health check handler
+    import('./controllers/healthController').then(({ getHealth }) => getHealth(_req, res)).catch(next);
+  });
+
   // API Routes
   app.use('/api', routes);
 

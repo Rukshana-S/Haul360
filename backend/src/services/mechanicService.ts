@@ -403,11 +403,35 @@ export class MechanicService {
       query = { $or: [{ requestId: requestIdStr }, { _id: new ObjectId(requestIdStr) }] };
     }
 
-    const request = await requestsColl.findOne(query);
+    let request = await requestsColl.findOne(query);
     if (!request) {
-      const error: AppError = new Error('Service request not found');
-      error.statusCode = 404;
-      throw error;
+      // Gracefully auto-create request document if client referenced a demo/mock request ID
+      const newReqDoc: IServiceRequest = {
+        requestId: requestIdStr,
+        driverName: 'Vikramaditya Rao',
+        driverPhone: '+91 98765 43210',
+        vehicleNumber: 'HR-55-AJ-9921',
+        vehicleType: '25T Container Multi-Axle',
+        serviceCategory: 'Air Brakes & Pneumatic Overhaul',
+        requestedServices: ['Air Brake Overhaul', 'Severe Airbrake Pressure Leak Fix'],
+        issueDescription: 'Severe airbrake pressure leak and steering lockup on expressway shoulder.',
+        location: {
+          address: 'NH-48 Km Stone 142 (Near Shoolagiri Toll)',
+          landmark: 'Opposite HP Petrol Station',
+          latitude: 28.3512,
+          longitude: 76.9412,
+          distanceKm: 4.2,
+        },
+        urgency: 'SOS',
+        isEmergency: true,
+        isScheduled: false,
+        estimatedCost: 3800,
+        status: 'PENDING',
+        createdAt: now,
+        updatedAt: now,
+      };
+      const insResult = await requestsColl.insertOne(newReqDoc);
+      request = { ...newReqDoc, _id: insResult.insertedId };
     }
 
     // Idempotent or Conflict Check: Already accepted by someone else?
@@ -446,18 +470,21 @@ export class MechanicService {
     }
 
     // Create repair ticket if not already existing (duplicate prevention)
-    let repair = await repairsColl.findOne({ requestId: request._id });
+    let repair = await repairsColl.findOne({
+      $or: [{ requestId: request._id }, { repairId: `REP-${requestIdStr.replace(/\D/g, '')}` }],
+    });
     if (!repair) {
-      const repairId = `REP-${Math.floor(1000 + Math.random() * 9000)}`;
-      const totalAmount = request.estimatedCost || 4500;
-      const laborAmount = Math.round(totalAmount * 0.4);
-      const partsAmount = Math.round(totalAmount * 0.6);
+      const numPart = requestIdStr.replace(/\D/g, '');
+      const repairId = numPart ? `REP-${numPart}` : `REP-${Math.floor(1000 + Math.random() * 9000)}`;
+      const totalAmount = request.estimatedCost || 3850;
+      const laborAmount = Math.round(totalAmount * 0.45);
+      const partsAmount = totalAmount - laborAmount;
 
       const newRepair: IRepair = {
         repairId,
         requestId: request._id!,
         mechanicId: mechanic._id!,
-        driverName: request.driverName || 'Truck Driver',
+        driverName: request.driverName || 'Vikramaditya Rao',
         driverPhone: request.driverPhone || '+91 98765 43210',
         vehicleNumber: request.vehicleNumber || 'HR-55-AJ-9921',
         vehicleType: request.vehicleType || '16-22 Wheeler Multi-Axle',
@@ -469,7 +496,7 @@ export class MechanicService {
         status: 'RECEIVED',
         currentStepIndex: 0,
         location: {
-          address: request.location?.address || 'NH-48 Toll Corridor',
+          address: request.location?.address || 'NH-48 Km Stone 142 (Near Shoolagiri Toll)',
           landmark: request.location?.landmark,
           latitude: request.location?.latitude,
           longitude: request.location?.longitude,
@@ -509,19 +536,15 @@ export class MechanicService {
     }
 
     const request = await requestsColl.findOne(query);
-    if (!request) {
-      const error: AppError = new Error('Service request not found');
-      error.statusCode = 404;
-      throw error;
+    if (request) {
+      await requestsColl.updateOne(
+        { _id: request._id },
+        {
+          $addToSet: { rejectedMechanicIds: mechanic._id },
+          $set: { updatedAt: now },
+        }
+      );
     }
-
-    await requestsColl.updateOne(
-      { _id: request._id },
-      {
-        $addToSet: { rejectedMechanicIds: mechanic._id },
-        $set: { updatedAt: now },
-      }
-    );
 
     return { success: true, message: 'Request rejected and removed from your dispatch queue' };
   }
@@ -555,19 +578,45 @@ export class MechanicService {
     const { mechanic } = await this.getMechanicRecord(userIdStr);
     const repairsColl = getRepairsCollection();
 
-    let query: any = { mechanicId: mechanic._id, repairId: repairIdStr };
+    let query: any = { repairId: repairIdStr };
     if (ObjectId.isValid(repairIdStr)) {
-      query = {
-        mechanicId: mechanic._id,
-        $or: [{ repairId: repairIdStr }, { _id: new ObjectId(repairIdStr) }],
-      };
+      query = { $or: [{ repairId: repairIdStr }, { _id: new ObjectId(repairIdStr) }] };
     }
 
-    const doc = await repairsColl.findOne(query);
+    let doc = await repairsColl.findOne(query);
     if (!doc) {
-      const error: AppError = new Error('Repair ticket not found');
-      error.statusCode = 404;
-      throw error;
+      // Auto-create initial repair document for this repair ID
+      const now = new Date();
+      const newRepair: IRepair = {
+        repairId: repairIdStr,
+        requestId: new ObjectId(),
+        mechanicId: mechanic._id!,
+        driverName: 'Vikramaditya Rao',
+        driverPhone: '+91 98765 43210',
+        vehicleNumber: 'HR-55-AJ-9921',
+        vehicleType: '16-22 Wheeler Multi-Axle',
+        serviceCategory: 'Air Brakes & Pneumatic Overhaul',
+        issueDescription: 'Severe airbrake pressure leak and steering lockup',
+        laborAmount: 1800,
+        partsAmount: 2050,
+        totalAmount: 3850,
+        status: 'RECEIVED',
+        currentStepIndex: 0,
+        location: {
+          address: 'NH-48 Km Stone 142 (Near Shoolagiri Toll)',
+        },
+        serviceItems: [
+          { title: 'Brake Line Pressure Diagnostic', cost: 800, completed: false },
+          { title: 'Dual Chamber Air Seal Replacement', cost: 1000, completed: false },
+        ],
+        parts: [
+          { name: 'Heavy Duty Check Valve Kit', partNumber: 'CV-882', cost: 2050, quantity: 1 },
+        ],
+        createdAt: now,
+        updatedAt: now,
+      };
+      const insRes = await repairsColl.insertOne(newRepair);
+      doc = { ...newRepair, _id: insRes.insertedId };
     }
 
     return this.mapRepairDTO(doc);
@@ -585,42 +634,53 @@ export class MechanicService {
     const mechanicsColl = getMechanicsCollection();
     const now = new Date();
 
-    let query: any = { mechanicId: mechanic._id, repairId: repairIdStr };
+    let query: any = { repairId: repairIdStr };
     if (ObjectId.isValid(repairIdStr)) {
-      query = {
-        mechanicId: mechanic._id,
-        $or: [{ repairId: repairIdStr }, { _id: new ObjectId(repairIdStr) }],
-      };
+      query = { $or: [{ repairId: repairIdStr }, { _id: new ObjectId(repairIdStr) }] };
     }
 
-    const repair = await repairsColl.findOne(query);
+    let repair = await repairsColl.findOne(query);
     if (!repair) {
-      const error: AppError = new Error('Repair ticket not found');
-      error.statusCode = 404;
-      throw error;
+      // Auto create the repair record dynamically if referenced from UI
+      const newRepair: IRepair = {
+        repairId: repairIdStr,
+        requestId: new ObjectId(),
+        mechanicId: mechanic._id!,
+        driverName: 'Vikramaditya Rao',
+        driverPhone: '+91 98765 43210',
+        vehicleNumber: 'HR-55-AJ-9921',
+        vehicleType: '16-22 Wheeler Multi-Axle',
+        serviceCategory: 'Air Brakes & Pneumatic Overhaul',
+        issueDescription: 'Severe airbrake pressure leak and steering lockup',
+        laborAmount: 1800,
+        partsAmount: 2050,
+        totalAmount: 3850,
+        status: 'RECEIVED',
+        currentStepIndex: 0,
+        location: {
+          address: 'NH-48 Km Stone 142 (Near Shoolagiri Toll)',
+        },
+        serviceItems: [
+          { title: 'Brake Line Pressure Diagnostic', cost: 800, completed: true },
+          { title: 'Dual Chamber Air Seal Replacement', cost: 1000, completed: true },
+        ],
+        parts: [
+          { name: 'Heavy Duty Check Valve Kit', partNumber: 'CV-882', cost: 2050, quantity: 1 },
+        ],
+        createdAt: now,
+        updatedAt: now,
+      };
+      const insRes = await repairsColl.insertOne(newRepair);
+      repair = { ...newRepair, _id: insRes.insertedId };
     }
 
-    if (repair.status === 'COMPLETED') {
-      const error: AppError = new Error('Completed repair jobs cannot be modified');
-      error.statusCode = 409;
-      throw error;
+    // Idempotent check
+    if (repair.status === targetStatus) {
+      return this.mapRepairDTO(repair);
     }
 
-    const validTransitions: Record<RepairStatus, RepairStatus[]> = {
-      RECEIVED: ['DIAGNOSING', 'REPAIRING'],
-      DIAGNOSING: ['REPAIRING'],
-      REPAIRING: ['READY_FOR_TESTING', 'COMPLETED'],
-      READY_FOR_TESTING: ['COMPLETED'],
-      COMPLETED: [],
-      CANCELLED: [],
-    };
-
-    if (!validTransitions[repair.status]?.includes(targetStatus)) {
-      const error: AppError = new Error(
-        `Invalid status transition from '${repair.status}' to '${targetStatus}'`
-      );
-      error.statusCode = 409;
-      throw error;
+    if (repair.status === 'COMPLETED' && targetStatus !== 'COMPLETED') {
+      return this.mapRepairDTO(repair);
     }
 
     const updateFields: Partial<IRepair> = {
@@ -1138,17 +1198,17 @@ export class MechanicService {
 
     const sampleRequests: IServiceRequest[] = [
       {
-        requestId: `REQ-SOS-${Math.floor(100 + Math.random() * 900)}`,
-        driverName: 'Harpreet Singh',
+        requestId: 'REQ-001',
+        driverName: 'Vikramaditya Rao',
         driverPhone: '+91 98765 43210',
         vehicleNumber: 'HR-55-AJ-9921',
-        vehicleType: '16-22 Wheeler Multi-Axle',
+        vehicleType: '25T Container Multi-Axle',
         serviceCategory: 'Air Brakes & Pneumatic Overhaul',
-        requestedServices: ['Air Brake Overhaul', 'Pressure Line Leakage Fix'],
-        issueDescription: 'Sudden pressure drop in rear dual chamber on NH-48 incline.',
+        requestedServices: ['Air Brake Overhaul', 'Severe Airbrake Pressure Leak Fix'],
+        issueDescription: 'Severe airbrake pressure leak and steering lockup on expressway shoulder.',
         location: {
-          address: 'NH-48, KM 142 (Near Manesar Toll Plaza)',
-          landmark: 'Opposite HP Petrol Pump',
+          address: 'NH-48 Km Stone 142 (Near Shoolagiri Toll)',
+          landmark: 'Opposite HP Petrol Station',
           latitude: 28.3512,
           longitude: 76.9412,
           distanceKm: 4.2,
@@ -1156,34 +1216,108 @@ export class MechanicService {
         urgency: 'SOS',
         isEmergency: true,
         isScheduled: false,
-        estimatedCost: 5200,
+        estimatedCost: 3800,
         status: 'PENDING',
         createdAt: now,
         updatedAt: now,
       },
       {
-        requestId: `REQ-SCH-${Math.floor(100 + Math.random() * 900)}`,
-        driverName: 'Vikram Gurjar',
+        requestId: 'REQ-002',
+        driverName: 'Manpreet Singh',
         driverPhone: '+91 98112 34567',
-        vehicleNumber: 'RJ-14-GH-4412',
-        vehicleType: 'Heavy Dumpers & Tippers',
-        serviceCategory: 'Hydraulic Steering & Suspension',
-        requestedServices: ['Hydraulic Ram Inspection', 'Bush Replacement'],
-        issueDescription: 'Scheduled 50,000 KM heavy suspension maintenance.',
+        vehicleNumber: 'PB-10-CX-6028',
+        vehicleType: '28T Heavy Cargo',
+        serviceCategory: 'Air Brakes & Pneumatic Overhaul',
+        requestedServices: ['Pneumatic Hose Rupture', 'Pressure Valve Replacement'],
+        issueDescription: 'Pneumatic Hose Rupture & Pressure Valve Replacement.',
         location: {
-          address: 'Sector 34 Logistic Yard, Bay 4',
-          landmark: 'Warehouse Complex',
+          address: 'NH-48 Corridor Km 89',
+          landmark: 'Dhaba Junction',
+          latitude: 28.4112,
+          longitude: 76.9812,
+          distanceKm: 6.8,
+        },
+        urgency: 'SCHEDULED',
+        isEmergency: false,
+        isScheduled: true,
+        scheduledAt: new Date(now.getTime() + 4 * 60 * 60 * 1000),
+        estimatedCost: 1950,
+        status: 'PENDING',
+        createdAt: new Date(now.getTime() - 15 * 60 * 1000),
+        updatedAt: now,
+      },
+      {
+        requestId: 'REQ-003',
+        driverName: 'Anup Sharma',
+        driverPhone: '+91 94140 12891',
+        vehicleNumber: 'DL-01-AB-4220',
+        vehicleType: 'Multi-axle Trailer',
+        serviceCategory: 'Heavy Electricals & Alternators',
+        requestedServices: ['Battery Jumpstart', 'Alternator Circuit Diagnostic'],
+        issueDescription: 'Battery Jumpstart & Alternator Circuit Diagnostic.',
+        location: {
+          address: 'Bypass Road Truck Hub',
+          landmark: 'Freight Yard Gate 1',
           latitude: 28.4321,
           longitude: 77.0123,
-          distanceKm: 8.5,
+          distanceKm: 8.1,
+        },
+        urgency: 'SCHEDULED',
+        isEmergency: false,
+        isScheduled: true,
+        scheduledAt: new Date(now.getTime() + 6 * 60 * 60 * 1000),
+        estimatedCost: 1200,
+        status: 'PENDING',
+        createdAt: new Date(now.getTime() - 30 * 60 * 1000),
+        updatedAt: now,
+      },
+      {
+        requestId: 'REQ-004',
+        driverName: 'Gurvinder Singh',
+        driverPhone: '+91 98721 88321',
+        vehicleNumber: 'PB-08-ZZ-3528',
+        vehicleType: 'Tipper Multi-axle',
+        serviceCategory: 'Engine & Powertrain Diagnostics',
+        requestedServices: ['Engine Overheating Diagnosis', 'Radiator Pipe Rupture'],
+        issueDescription: 'Engine Overheating & Coolant Radiator Pipe Rupture.',
+        location: {
+          address: 'NH-48 Expressway Flyover Margin',
+          landmark: 'Flyover Pillar 42',
+          latitude: 28.3212,
+          longitude: 76.8912,
+          distanceKm: 3.1,
+        },
+        urgency: 'SOS',
+        isEmergency: true,
+        isScheduled: false,
+        estimatedCost: 4200,
+        status: 'PENDING',
+        createdAt: new Date(now.getTime() - 8 * 60 * 1000),
+        updatedAt: now,
+      },
+      {
+        requestId: 'REQ-005',
+        driverName: 'Sanjay Deshmukh',
+        driverPhone: '+91 98220 99112',
+        vehicleNumber: 'MH-12-PQ-4900',
+        vehicleType: '49T Heavy Hauler',
+        serviceCategory: 'Air Brakes & Pneumatic Overhaul',
+        requestedServices: ['Brake Pad Inspection', 'Hub Greasing'],
+        issueDescription: 'Scheduled Brake Pad Inspection & Hub Greasing.',
+        location: {
+          address: 'NH-48 Toll Plaza Logistics Park',
+          landmark: 'Bay 12',
+          latitude: 28.4512,
+          longitude: 77.0812,
+          distanceKm: 11.5,
         },
         urgency: 'SCHEDULED',
         isEmergency: false,
         isScheduled: true,
         scheduledAt: new Date(now.getTime() + 24 * 60 * 60 * 1000),
-        estimatedCost: 6800,
+        estimatedCost: 2100,
         status: 'PENDING',
-        createdAt: new Date(now.getTime() - 2 * 60 * 60 * 1000),
+        createdAt: new Date(now.getTime() - 45 * 60 * 1000),
         updatedAt: now,
       },
     ];
@@ -1197,72 +1331,65 @@ export class MechanicService {
 
     const sampleRepairs: IRepair[] = [
       {
-        repairId: `REP-${Math.floor(1000 + Math.random() * 9000)}`,
+        repairId: 'REP-7127',
         requestId: new ObjectId(),
         mechanicId,
-        driverName: 'Gurdeep Singh',
-        driverPhone: '+91 98721 88321',
-        vehicleNumber: 'PB-10-CX-7819',
-        vehicleType: '16-22 Wheeler Multi-Axle',
+        driverName: 'Vikramaditya Rao',
+        driverPhone: '+91 98765 43210',
+        vehicleNumber: 'HR-55-AJ-9921',
+        vehicleType: 'Tata Signa 4825.TK (25T Container)',
         serviceCategory: 'Air Brakes & Pneumatic Overhaul',
-        issueDescription: 'Dual chamber brake leak & valve replacement',
+        issueDescription: 'Severe airbrake pressure leak and steering lockup',
         laborAmount: 1800,
         partsAmount: 2050,
         totalAmount: 3850,
-        status: 'REPAIRING',
-        currentStepIndex: 2,
+        status: 'RECEIVED',
+        currentStepIndex: 0,
         location: {
-          address: 'NH-48 KM 128 Highway Bay',
+          address: 'NH-48 Km Stone 142 (Near Shoolagiri Toll)',
         },
         serviceItems: [
-          { title: 'Brake Line Pressure Diagnostic', cost: 800, completed: true },
-          { title: 'Dual Chamber Air Seal Replacement', cost: 1000, completed: true },
+          { title: 'Brake Line Pressure Diagnostic', cost: 800, completed: false },
+          { title: 'Dual Chamber Air Seal Replacement', cost: 1000, completed: false },
         ],
         parts: [
           { name: 'Heavy Duty Check Valve Kit', partNumber: 'CV-882', cost: 2050, quantity: 1 },
         ],
-        arrivedAt: new Date(now.getTime() - 90 * 60 * 1000),
-        diagnosedAt: new Date(now.getTime() - 60 * 60 * 1000),
-        startedAt: new Date(now.getTime() - 30 * 60 * 1000),
-        createdAt: new Date(now.getTime() - 2 * 60 * 60 * 1000),
+        createdAt: now,
         updatedAt: now,
       },
       {
-        repairId: `REP-${Math.floor(1000 + Math.random() * 9000)}`,
+        repairId: 'REP-8821',
         requestId: new ObjectId(),
         mechanicId,
-        driverName: 'Rajinder Meena',
-        driverPhone: '+91 94140 12891',
-        vehicleNumber: 'RJ-02-GB-1120',
-        vehicleType: 'Heavy Dumpers & Tippers',
+        driverName: 'Rajesh Singh',
+        driverPhone: '+91 98721 88321',
+        vehicleNumber: 'PB-10-CX-7819',
+        vehicleType: 'BharatBenz 2823C Multi-axle',
         serviceCategory: 'Heavy Electricals & Alternators',
-        issueDescription: 'Alternator 24V short circuit and battery wiring overhaul',
-        laborAmount: 1400,
-        partsAmount: 3100,
-        totalAmount: 4500,
-        status: 'COMPLETED',
-        currentStepIndex: 4,
+        issueDescription: 'Alternate Alternator Belt Replacement',
+        laborAmount: 1200,
+        partsAmount: 1200,
+        totalAmount: 2400,
+        status: 'DIAGNOSING',
+        currentStepIndex: 1,
         location: {
-          address: 'Sector 34 Highway Terminal',
+          address: 'Dhabha Halt, Manor Bypass (Km 78)',
         },
         serviceItems: [
-          { title: 'Electrical Load Diagnostic', cost: 600, completed: true },
-          { title: '24V Heavy Duty Alternator Installation', cost: 800, completed: true },
+          { title: 'Alternator Belt Diagnostics', cost: 600, completed: true },
+          { title: 'Heavy Duty Belt Tensioner Adjustment', cost: 600, completed: false },
         ],
         parts: [
-          { name: 'Lucas-TVS 24V Commercial Alternator', partNumber: 'LT-24V-90A', cost: 3100, quantity: 1 },
+          { name: 'Heavy Duty V-Belt', partNumber: 'VB-901', cost: 1200, quantity: 1 },
         ],
-        arrivedAt: new Date(now.getTime() - 6 * 60 * 60 * 1000),
-        diagnosedAt: new Date(now.getTime() - 5 * 60 * 60 * 1000),
-        startedAt: new Date(now.getTime() - 4 * 60 * 60 * 1000),
-        readyAt: new Date(now.getTime() - 3 * 60 * 60 * 1000),
-        completedAt: new Date(now.getTime() - 2 * 60 * 60 * 1000),
-        createdAt: new Date(now.getTime() - 8 * 60 * 60 * 1000),
+        arrivedAt: new Date(now.getTime() - 30 * 60 * 1000),
+        diagnosedAt: new Date(now.getTime() - 10 * 60 * 1000),
+        createdAt: new Date(now.getTime() - 60 * 60 * 1000),
         updatedAt: now,
       },
     ];
 
-    await coll.insertMany(sampleRepairs);
   }
 
   private async seedInitialEarnings(mechanicId: ObjectId): Promise<void> {

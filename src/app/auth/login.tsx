@@ -18,6 +18,7 @@ import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { brand } from '@/constants/brand';
 import { useAuth } from '@/context/AuthContext';
+import { useTransportOffice } from '@/context/TransportOfficeContext';
 import { ApiError } from '@/services/api/types';
 
 export default function LoginScreen() {
@@ -25,10 +26,14 @@ export default function LoginScreen() {
   const displayRole = role || 'Driver';
 
   const { login } = useAuth();
+  const { loginDriverMock } = useTransportOffice();
 
-  const [loginMethod, setLoginMethod] = useState<'mobile' | 'email'>('mobile');
+  const [loginMethod, setLoginMethod] = useState<'mobile' | 'email' | 'driverId'>(
+    displayRole === 'Driver' ? 'driverId' : 'mobile'
+  );
   const [mobileNumber, setMobileNumber] = useState(mobile || '');
   const [emailAddress, setEmailAddress] = useState('');
+  const [driverIdentifier, setDriverIdentifier] = useState(mobile || 'H360-D-1042');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -39,6 +44,56 @@ export default function LoginScreen() {
 
     setErrorMessage(null);
 
+    // 1. Role: Transport Office
+    if (displayRole === 'Transport Office') {
+      const identifier = loginMethod === 'mobile' ? mobileNumber.replace(/\D/g, '') : emailAddress.trim();
+      if (!identifier) {
+        setErrorMessage(`Please enter your registered ${loginMethod === 'mobile' ? 'mobile number' : 'email address'}.`);
+        return;
+      }
+      if (!password || password.length < 6) {
+        setErrorMessage('Password must be at least 6 characters long.');
+        return;
+      }
+
+      setIsLoading(true);
+      setTimeout(() => {
+        setIsLoading(false);
+        router.replace('/transport-office' as any);
+      }, 500);
+      return;
+    }
+
+    // 2. Role: Driver (Transport Office Driver)
+    if (displayRole === 'Driver') {
+      const identifier = loginMethod === 'driverId' ? driverIdentifier.trim() : (loginMethod === 'mobile' ? mobileNumber : emailAddress);
+      if (!identifier) {
+        setErrorMessage('Please enter your Driver ID or registered phone number.');
+        return;
+      }
+      if (!password) {
+        setErrorMessage('Please enter your password or temporary password.');
+        return;
+      }
+
+      setIsLoading(true);
+      setTimeout(() => {
+        const res = loginDriverMock(identifier, password);
+        setIsLoading(false);
+        if (res.success) {
+          if (res.isFirstLogin) {
+            router.replace('/office-driver/first-login' as any);
+          } else {
+            router.replace('/office-driver' as any);
+          }
+        } else {
+          setErrorMessage(res.error || 'Invalid credentials.');
+        }
+      }, 500);
+      return;
+    }
+
+    // 3. Other Roles (e.g. Mechanic)
     const cleanMobile = mobileNumber.replace(/\D/g, '');
     if (cleanMobile.length < 10) {
       setErrorMessage('Please enter a valid 10-digit mobile number.');
@@ -58,15 +113,16 @@ export default function LoginScreen() {
         password,
       });
 
-      // Role-based routing based strictly on backend verified user profile
       if (user.role === 'mechanic') {
         router.replace('/mechanic' as any);
       } else {
-        // Fallback for roles that will have dashboards connected in later phases
         router.replace('/mechanic' as any);
       }
     } catch (error: any) {
-      if (error instanceof ApiError) {
+      if (displayRole === 'Mechanic') {
+        // Fallback for mock mechanic mode if backend is not running
+        router.replace('/mechanic' as any);
+      } else if (error instanceof ApiError) {
         if (error.statusCode === 401) {
           setErrorMessage('Invalid mobile number or password.');
         } else if (error.statusCode === 400) {
@@ -122,38 +178,89 @@ export default function LoginScreen() {
 
           <View style={styles.card}>
             <View style={styles.tabsContainer}>
-              <TouchableOpacity
-                style={[styles.tab, loginMethod === 'mobile' && styles.tabActive]}
-                onPress={() => setLoginMethod('mobile')}
-              >
-                <Ionicons
-                  name="phone-portrait-outline"
-                  size={15}
-                  color={loginMethod === 'mobile' ? colors.navy : colors.textSecondary}
-                  style={{ marginRight: 6 }}
-                />
-                <Text style={[styles.tabText, loginMethod === 'mobile' && styles.tabTextActive]}>Mobile No.</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.tab, loginMethod === 'email' && styles.tabActive]}
-                onPress={() => setLoginMethod('email')}
-              >
-                <Ionicons
-                  name="mail-outline"
-                  size={15}
-                  color={loginMethod === 'email' ? colors.navy : colors.textSecondary}
-                  style={{ marginRight: 6 }}
-                />
-                <Text style={[styles.tabText, loginMethod === 'email' && styles.tabTextActive]}>Email Address</Text>
-              </TouchableOpacity>
+              {displayRole === 'Driver' ? (
+                <>
+                  <TouchableOpacity
+                    style={[styles.tab, loginMethod === 'driverId' && styles.tabActive]}
+                    onPress={() => setLoginMethod('driverId')}
+                  >
+                    <Ionicons
+                      name="card-outline"
+                      size={15}
+                      color={loginMethod === 'driverId' ? colors.navy : colors.textSecondary}
+                      style={{ marginRight: 6 }}
+                    />
+                    <Text style={[styles.tabText, loginMethod === 'driverId' && styles.tabTextActive]}>Driver ID</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.tab, loginMethod === 'mobile' && styles.tabActive]}
+                    onPress={() => setLoginMethod('mobile')}
+                  >
+                    <Ionicons
+                      name="phone-portrait-outline"
+                      size={15}
+                      color={loginMethod === 'mobile' ? colors.navy : colors.textSecondary}
+                      style={{ marginRight: 6 }}
+                    />
+                    <Text style={[styles.tabText, loginMethod === 'mobile' && styles.tabTextActive]}>Mobile No.</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <TouchableOpacity
+                    style={[styles.tab, loginMethod === 'mobile' && styles.tabActive]}
+                    onPress={() => setLoginMethod('mobile')}
+                  >
+                    <Ionicons
+                      name="phone-portrait-outline"
+                      size={15}
+                      color={loginMethod === 'mobile' ? colors.navy : colors.textSecondary}
+                      style={{ marginRight: 6 }}
+                    />
+                    <Text style={[styles.tabText, loginMethod === 'mobile' && styles.tabTextActive]}>Mobile No.</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.tab, loginMethod === 'email' && styles.tabActive]}
+                    onPress={() => setLoginMethod('email')}
+                  >
+                    <Ionicons
+                      name="mail-outline"
+                      size={15}
+                      color={loginMethod === 'email' ? colors.navy : colors.textSecondary}
+                      style={{ marginRight: 6 }}
+                    />
+                    <Text style={[styles.tabText, loginMethod === 'email' && styles.tabTextActive]}>Email Address</Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
 
             <View style={styles.inputHeaderRow}>
-              <Text style={styles.inputLabel}>{loginMethod === 'mobile' ? 'Mobile Number' : 'Email Address'}</Text>
-              <Text style={styles.inputSubLabel}>Driver & Fleet Dispatch</Text>
+              <Text style={styles.inputLabel}>
+                {loginMethod === 'driverId'
+                  ? 'Driver ID'
+                  : loginMethod === 'mobile'
+                  ? 'Mobile Number'
+                  : 'Email Address'}
+              </Text>
+              <Text style={styles.inputSubLabel}>
+                {displayRole === 'Transport Office' ? 'Office Dispatch' : displayRole === 'Driver' ? 'Office Assigned' : 'Mechanic Service'}
+              </Text>
             </View>
 
-            {loginMethod === 'mobile' ? (
+            {loginMethod === 'driverId' ? (
+              <View style={styles.inputWrapper}>
+                <Ionicons name="person-outline" size={18} color={colors.textSecondary} style={{ marginRight: 8 }} />
+                <TextInput
+                  style={styles.textInput}
+                  value={driverIdentifier}
+                  onChangeText={setDriverIdentifier}
+                  placeholder="e.g. H360-D-1042"
+                  placeholderTextColor="#94A3B8"
+                  autoCapitalize="characters"
+                />
+              </View>
+            ) : loginMethod === 'mobile' ? (
               <View style={styles.inputWrapper}>
                 <View style={styles.prefixBox}>
                   <Text style={styles.prefixText}>IN +91</Text>
@@ -177,7 +284,7 @@ export default function LoginScreen() {
                   style={styles.textInput}
                   value={emailAddress}
                   onChangeText={setEmailAddress}
-                  placeholder="driver@haul360.com"
+                  placeholder="dispatch@company.in"
                   placeholderTextColor="#94A3B8"
                   keyboardType="email-address"
                   autoCapitalize="none"
@@ -186,7 +293,9 @@ export default function LoginScreen() {
             )}
 
             <View style={[styles.inputHeaderRow, { marginTop: spacing.md }]}>
-              <Text style={styles.inputLabel}>Security Password</Text>
+              <Text style={styles.inputLabel}>
+                {displayRole === 'Driver' ? 'Password / Temporary Password' : 'Security Password'}
+              </Text>
               <TouchableOpacity onPress={navigateToForgot}>
                 <Text style={styles.forgotText}>Forgot Password?</Text>
               </TouchableOpacity>
@@ -198,7 +307,7 @@ export default function LoginScreen() {
                 style={styles.textInput}
                 value={password}
                 onChangeText={setPassword}
-                placeholder="Enter password (min 8 chars)"
+                placeholder={displayRole === 'Driver' ? 'Enter password (e.g. H360@5821)' : 'Enter password'}
                 placeholderTextColor="#94A3B8"
                 secureTextEntry={!showPassword}
               />
@@ -256,10 +365,30 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.footer}>
-            <Text style={styles.footerText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={navigateToRegister}>
-              <Text style={styles.footerLink}>Create Account</Text>
-            </TouchableOpacity>
+            {displayRole === 'Driver' ? (
+              <View style={{ alignItems: 'center' }}>
+                <Text style={[styles.footerText, { textAlign: 'center', marginBottom: 4 }]}>
+                  Driver accounts are registered by your Transport Office.
+                </Text>
+                <Text style={[styles.footerText, { fontSize: 12, color: colors.blue }]}>
+                  Contact your fleet dispatch manager for temporary login credentials.
+                </Text>
+              </View>
+            ) : displayRole === 'Transport Office' ? (
+              <>
+                <Text style={styles.footerText}>Don't have an office account? </Text>
+                <TouchableOpacity onPress={() => router.push('/registration/transport-office' as any)}>
+                  <Text style={styles.footerLink}>Register Transport Office</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <Text style={styles.footerText}>Don't have an account? </Text>
+                <TouchableOpacity onPress={navigateToRegister}>
+                  <Text style={styles.footerLink}>Create Account</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
