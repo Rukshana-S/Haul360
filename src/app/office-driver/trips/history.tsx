@@ -39,7 +39,16 @@ export default function DriverTripHistoryScreen() {
     <Screen safeArea style={styles.container}>
       {/* HEADER */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace('/office-driver/profile');
+            }
+          }}
+          style={styles.backButton}
+        >
           <Ionicons name="arrow-back" size={24} color={colors.navy} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My Trip History</Text>

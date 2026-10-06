@@ -69,7 +69,12 @@ interface TransportOfficeContextType {
   // Office Actions
   updateOfficeProfile: (updated: Partial<TransportOffice>) => void;
   addDriver: (input: AddDriverInput) => { driver: OfficeDriver; tempPassword: string };
+  inactivateDriver: (driverId: string) => { success: boolean; error?: string };
+  activateDriver: (driverId: string) => { success: boolean; error?: string };
+  rateDriver: (driverId: string, rating: number, feedback?: string) => void;
   addVehicle: (input: AddVehicleInput) => OfficeVehicle;
+  inactivateVehicle: (vehicleId: string) => { success: boolean; error?: string };
+  activateVehicle: (vehicleId: string) => { success: boolean; error?: string };
   markVehicleMaintenance: (vehicleId: string, isMaintenance: boolean) => void;
   assignDriverAndVehicle: (
     shipmentId: string,
@@ -146,11 +151,14 @@ export const TransportOfficeProvider: React.FC<{ children: React.ReactNode }> = 
       documentStatus: input.documentStatus || 'VERIFIED',
       isFirstLogin: true,
       tempPassword,
+      isActive: true,
       availability: 'AVAILABLE',
       currentShipmentId: null,
       currentVehicleId: null,
       completedTripsCount: 0,
-      rating: 5.0,
+      rating: 0,
+      ratingCount: 0,
+      lastRatedDate: 'No ratings yet',
       experienceYears: Math.max(1, input.age - 22),
       joinedDate: 'Just now',
     };
@@ -171,6 +179,92 @@ export const TransportOfficeProvider: React.FC<{ children: React.ReactNode }> = 
     return { driver: newDriver, tempPassword };
   }, [drivers.length, office.id]);
 
+  const inactivateDriver = useCallback((driverId: string) => {
+    const driver = drivers.find((d) => d.id === driverId);
+    if (!driver) return { success: false, error: 'Driver not found.' };
+
+    if (driver.availability === 'BUSY' || driver.availability === 'ASSIGNMENT_PENDING' || driver.currentShipmentId) {
+      return {
+        success: false,
+        error: `Driver ${driver.name} is currently assigned to an active trip. Complete or re-assign trip before inactivating.`,
+      };
+    }
+
+    setDrivers((prev) =>
+      prev.map((d) => (d.id === driverId ? { ...d, isActive: false } : d))
+    );
+
+    const notif: OfficeNotification = {
+      id: `NOTIF-O-${Date.now()}`,
+      title: 'Driver Deactivated',
+      message: `${driver.name} (ID: ${driver.id}) has been soft-deactivated and excluded from new assignments.`,
+      time: 'Just now',
+      type: 'SYSTEM',
+      read: false,
+    };
+    setOfficeNotifications((prev) => [notif, ...prev]);
+
+    return { success: true };
+  }, [drivers]);
+
+  const activateDriver = useCallback((driverId: string) => {
+    const driver = drivers.find((d) => d.id === driverId);
+    if (!driver) return { success: false, error: 'Driver not found.' };
+
+    setDrivers((prev) =>
+      prev.map((d) => (d.id === driverId ? { ...d, isActive: true } : d))
+    );
+
+    const notif: OfficeNotification = {
+      id: `NOTIF-O-${Date.now()}`,
+      title: 'Driver Activated',
+      message: `${driver.name} (ID: ${driver.id}) is now active and available for shipment dispatch.`,
+      time: 'Just now',
+      type: 'SYSTEM',
+      read: false,
+    };
+    setOfficeNotifications((prev) => [notif, ...prev]);
+
+    return { success: true };
+  }, [drivers]);
+
+  const rateDriver = useCallback((driverId: string, ratingScore: number, feedback?: string) => {
+    const driver = drivers.find((d) => d.id === driverId);
+    if (!driver) return;
+
+    const currentCount = driver.ratingCount || 0;
+    const currentRating = driver.rating || 0;
+    const newRating = currentCount === 0
+      ? Number(ratingScore.toFixed(1))
+      : Number((((currentRating * currentCount) + ratingScore) / (currentCount + 1)).toFixed(1));
+    const newCount = currentCount + 1;
+
+    setDrivers((prev) =>
+      prev.map((d) => {
+        if (d.id === driverId) {
+          return {
+            ...d,
+            rating: newRating,
+            ratingCount: newCount,
+            lastRatedDate: 'Today',
+          };
+        }
+        return d;
+      })
+    );
+
+    const notif: OfficeNotification = {
+      id: `NOTIF-O-${Date.now()}`,
+      title: 'Driver Rating Submitted',
+      message: `Rated ${driver.name} with ${ratingScore} ★.${feedback ? ` Feedback: "${feedback}"` : ''}`,
+      time: 'Just now',
+      type: 'SYSTEM',
+      read: false,
+      targetId: driver.id,
+    };
+    setOfficeNotifications((prev) => [notif, ...prev]);
+  }, [drivers]);
+
   const addVehicle = useCallback((input: AddVehicleInput) => {
     const nextIndex = vehicles.length + 1;
     const vehicleId = `VEH-${String(nextIndex).padStart(3, '0')}`;
@@ -186,6 +280,7 @@ export const TransportOfficeProvider: React.FC<{ children: React.ReactNode }> = 
       rcNumber: input.rcNumber.toUpperCase().trim(),
       insuranceStatus: input.insuranceStatus,
       permitStatus: input.permitStatus,
+      isActive: true,
       status: 'AVAILABLE',
       currentDriverId: null,
       currentShipmentId: null,
@@ -206,6 +301,55 @@ export const TransportOfficeProvider: React.FC<{ children: React.ReactNode }> = 
 
     return newVehicle;
   }, [vehicles.length, office.id]);
+
+  const inactivateVehicle = useCallback((vehicleId: string) => {
+    const vehicle = vehicles.find((v) => v.id === vehicleId);
+    if (!vehicle) return { success: false, error: 'Vehicle not found.' };
+
+    if (vehicle.status === 'IN_TRIP' || vehicle.status === 'ASSIGNED' || vehicle.currentShipmentId) {
+      return {
+        success: false,
+        error: `Vehicle ${vehicle.vehicleNumber} is currently assigned to an active shipment. Complete or replace vehicle before inactivating.`,
+      };
+    }
+
+    setVehicles((prev) =>
+      prev.map((v) => (v.id === vehicleId ? { ...v, isActive: false } : v))
+    );
+
+    const notif: OfficeNotification = {
+      id: `NOTIF-O-${Date.now()}`,
+      title: 'Vehicle Deactivated',
+      message: `${vehicle.vehicleNumber} (${vehicle.vehicleType}) has been soft-deactivated and excluded from assignments.`,
+      time: 'Just now',
+      type: 'SYSTEM',
+      read: false,
+    };
+    setOfficeNotifications((prev) => [notif, ...prev]);
+
+    return { success: true };
+  }, [vehicles]);
+
+  const activateVehicle = useCallback((vehicleId: string) => {
+    const vehicle = vehicles.find((v) => v.id === vehicleId);
+    if (!vehicle) return { success: false, error: 'Vehicle not found.' };
+
+    setVehicles((prev) =>
+      prev.map((v) => (v.id === vehicleId ? { ...v, isActive: true } : v))
+    );
+
+    const notif: OfficeNotification = {
+      id: `NOTIF-O-${Date.now()}`,
+      title: 'Vehicle Activated',
+      message: `${vehicle.vehicleNumber} is now active and available for shipment dispatch.`,
+      time: 'Just now',
+      type: 'SYSTEM',
+      read: false,
+    };
+    setOfficeNotifications((prev) => [notif, ...prev]);
+
+    return { success: true };
+  }, [vehicles]);
 
   const markVehicleMaintenance = useCallback((vehicleId: string, isMaintenance: boolean) => {
     setVehicles((prev) =>
@@ -234,6 +378,14 @@ export const TransportOfficeProvider: React.FC<{ children: React.ReactNode }> = 
     if (!driver) return { success: false, error: 'Driver not found.' };
     if (!vehicle) return { success: false, error: 'Vehicle not found.' };
 
+    if (driver.isActive === false) {
+      return { success: false, error: `Driver ${driver.name} is inactive and cannot be assigned to shipments.` };
+    }
+
+    if (vehicle.isActive === false) {
+      return { success: false, error: `Vehicle ${vehicle.vehicleNumber} is inactive and cannot be assigned to shipments.` };
+    }
+
     if (driver.availability !== 'AVAILABLE') {
       return { success: false, error: `Driver ${driver.name} is currently ${driver.availability.toLowerCase()}.` };
     }
@@ -256,8 +408,11 @@ export const TransportOfficeProvider: React.FC<{ children: React.ReactNode }> = 
           return {
             ...s,
             status: 'ASSIGNMENT_PENDING',
+            tripStage: 'ASSIGNED',
             assignedDriverId: driverId,
             assignedVehicleId: vehicleId,
+            declinedDriverId: null,
+            declineReason: null,
             timeline: s.timeline.map((item, idx) => {
               if (idx === 1) {
                 return {
@@ -400,12 +555,16 @@ export const TransportOfficeProvider: React.FC<{ children: React.ReactNode }> = 
         if (s.id === shipmentId) {
           return {
             ...s,
-            status: 'PENDING_ASSIGNMENT',
+            status: 'DECLINED',
+            declinedDriverId: driverId || null,
             assignedDriverId: null,
             assignedVehicleId: null,
             declineReason: reason,
             timeline: s.timeline.map((item, idx) => {
               if (idx === 1) {
+                return { ...item, completed: false, time: '--', description: `Declined by ${driver?.name || 'driver'}: ${reason}` };
+              }
+              if (idx === 2) {
                 return { ...item, completed: false, time: '--', description: 'Re-assignment required' };
               }
               return item;
@@ -439,7 +598,7 @@ export const TransportOfficeProvider: React.FC<{ children: React.ReactNode }> = 
     const notif: OfficeNotification = {
       id: `NOTIF-O-${Date.now()}`,
       title: 'Assignment Declined',
-      message: `${driver?.name || 'Driver'} declined #${shipment.id}. Reason: ${reason}. Please re-assign.`,
+      message: `${driver?.name || 'Driver'} declined Shipment #${shipment.id}. Reason: "${reason}". Re-assignment required.`,
       time: 'Just now',
       type: 'ASSIGNMENT',
       read: false,
@@ -872,7 +1031,12 @@ export const TransportOfficeProvider: React.FC<{ children: React.ReactNode }> = 
     currentDriverUser,
     updateOfficeProfile,
     addDriver,
+    inactivateDriver,
+    activateDriver,
+    rateDriver,
     addVehicle,
+    inactivateVehicle,
+    activateVehicle,
     markVehicleMaintenance,
     assignDriverAndVehicle,
     requestMechanic,
@@ -907,7 +1071,12 @@ export const TransportOfficeProvider: React.FC<{ children: React.ReactNode }> = 
     currentDriverUser,
     updateOfficeProfile,
     addDriver,
+    inactivateDriver,
+    activateDriver,
+    rateDriver,
     addVehicle,
+    inactivateVehicle,
+    activateVehicle,
     markVehicleMaintenance,
     assignDriverAndVehicle,
     requestMechanic,

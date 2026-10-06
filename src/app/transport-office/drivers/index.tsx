@@ -16,7 +16,7 @@ import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
 import { useTransportOffice } from '@/context/TransportOfficeContext';
 
-type DriverFilter = 'ALL' | 'AVAILABLE' | 'ASSIGNED' | 'BUSY' | 'OFFLINE';
+type DriverFilter = 'ALL' | 'ACTIVE' | 'AVAILABLE' | 'ASSIGNED' | 'BUSY' | 'INACTIVE' | 'OFFLINE';
 
 export default function TransportOfficeDriversList() {
   const { drivers, shipments, vehicles } = useTransportOffice();
@@ -33,15 +33,20 @@ export default function TransportOfficeDriversList() {
     if (!matchesSearch) return false;
 
     if (activeFilter === 'ALL') return true;
-    if (activeFilter === 'AVAILABLE') return driver.availability === 'AVAILABLE';
-    if (activeFilter === 'ASSIGNED') return driver.availability === 'ASSIGNMENT_PENDING';
-    if (activeFilter === 'BUSY') return driver.availability === 'BUSY';
-    if (activeFilter === 'OFFLINE') return driver.availability === 'OFFLINE';
+    if (activeFilter === 'ACTIVE') return driver.isActive !== false;
+    if (activeFilter === 'INACTIVE') return driver.isActive === false;
+    if (activeFilter === 'AVAILABLE') return driver.isActive !== false && driver.availability === 'AVAILABLE';
+    if (activeFilter === 'ASSIGNED') return driver.isActive !== false && driver.availability === 'ASSIGNMENT_PENDING';
+    if (activeFilter === 'BUSY') return driver.isActive !== false && driver.availability === 'BUSY';
+    if (activeFilter === 'OFFLINE') return driver.isActive !== false && driver.availability === 'OFFLINE';
     return true;
   });
 
-  const getAvailabilityBadge = (status: string) => {
-    switch (status) {
+  const getAvailabilityBadge = (driverItem: typeof drivers[0]) => {
+    if (driverItem.isActive === false) {
+      return { label: 'INACTIVE', bg: '#F1F5F9', text: '#64748B', dot: '#94A3B8' };
+    }
+    switch (driverItem.availability) {
       case 'AVAILABLE':
         return { label: 'AVAILABLE', bg: '#DCFCE7', text: '#15803D', dot: '#22C55E' };
       case 'ASSIGNMENT_PENDING':
@@ -102,9 +107,11 @@ export default function TransportOfficeDriversList() {
           {(
             [
               { key: 'ALL', label: 'All' },
+              { key: 'ACTIVE', label: 'Active' },
               { key: 'AVAILABLE', label: 'Available' },
               { key: 'ASSIGNED', label: 'Assigned' },
               { key: 'BUSY', label: 'On Trip' },
+              { key: 'INACTIVE', label: 'Inactive' },
               { key: 'OFFLINE', label: 'Offline' },
             ] as const
           ).map((item) => {
@@ -112,13 +119,17 @@ export default function TransportOfficeDriversList() {
             const count =
               item.key === 'ALL'
                 ? drivers.length
+                : item.key === 'ACTIVE'
+                ? drivers.filter((d) => d.isActive !== false).length
+                : item.key === 'INACTIVE'
+                ? drivers.filter((d) => d.isActive === false).length
                 : item.key === 'AVAILABLE'
-                ? drivers.filter((d) => d.availability === 'AVAILABLE').length
+                ? drivers.filter((d) => d.isActive !== false && d.availability === 'AVAILABLE').length
                 : item.key === 'ASSIGNED'
-                ? drivers.filter((d) => d.availability === 'ASSIGNMENT_PENDING').length
+                ? drivers.filter((d) => d.isActive !== false && d.availability === 'ASSIGNMENT_PENDING').length
                 : item.key === 'BUSY'
-                ? drivers.filter((d) => d.availability === 'BUSY').length
-                : drivers.filter((d) => d.availability === 'OFFLINE').length;
+                ? drivers.filter((d) => d.isActive !== false && d.availability === 'BUSY').length
+                : drivers.filter((d) => d.isActive !== false && d.availability === 'OFFLINE').length;
 
             return (
               <TouchableOpacity
@@ -151,7 +162,7 @@ export default function TransportOfficeDriversList() {
           </View>
         ) : (
           filteredDrivers.map((driver) => {
-            const badge = getAvailabilityBadge(driver.availability);
+            const badge = getAvailabilityBadge(driver);
             const currentShipment = shipments.find((s) => s.id === driver.currentShipmentId);
             const currentVehicle = vehicles.find((v) => v.id === driver.currentVehicleId);
 
@@ -186,7 +197,7 @@ export default function TransportOfficeDriversList() {
                   <View style={styles.detailItem}>
                     <Text style={styles.detailLabel}>Experience & Rating</Text>
                     <Text style={styles.detailValue}>
-                      {driver.experienceYears} yrs • ★ {driver.rating.toFixed(1)}
+                      {driver.experienceYears} yrs • ★ {driver.rating > 0 ? driver.rating.toFixed(1) : '0.0'}
                     </Text>
                   </View>
                 </View>

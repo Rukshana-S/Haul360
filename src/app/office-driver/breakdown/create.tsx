@@ -77,7 +77,16 @@ export default function DriverCreateBreakdownScreen() {
         >
           {/* HEADER */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <TouchableOpacity
+              onPress={() => {
+                if (router.canGoBack()) {
+                  router.back();
+                } else {
+                  router.replace('/office-driver/trips/current');
+                }
+              }}
+              style={styles.backButton}
+            >
               <Ionicons name="arrow-back" size={24} color={colors.navy} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Emergency / SOS Breakdown</Text>

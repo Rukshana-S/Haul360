@@ -23,13 +23,21 @@ export default function TransportOfficeShipmentDetails() {
 
   const shipment = getShipmentById(id || '');
 
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/transport-office/shipments' as any);
+    }
+  };
+
   if (!shipment) {
     return (
       <Screen safeArea style={styles.container}>
         <View style={styles.notFoundContainer}>
           <Ionicons name="alert-circle-outline" size={48} color={colors.textSecondary} />
           <Text style={styles.notFoundTitle}>Shipment Not Found</Text>
-          <Button title="Back to Shipments" onPress={() => router.back()} style={{ marginTop: spacing.md }} />
+          <Button title="Back to Shipments" onPress={handleBack} style={{ marginTop: spacing.md }} />
         </View>
       </Screen>
     );
@@ -48,6 +56,8 @@ export default function TransportOfficeShipmentDetails() {
         return { label: 'PENDING ACCEPTANCE', bg: '#FEF3C7', text: '#B45309' };
       case 'PENDING_ASSIGNMENT':
         return { label: 'UNASSIGNED', bg: '#F1F5F9', text: '#475569' };
+      case 'DECLINED':
+        return { label: 'DECLINED BY DRIVER', bg: '#FEE2E2', text: '#B91C1C' };
       case 'DELIVERED':
         return { label: 'DELIVERED', bg: '#E0E7FF', text: '#4338CA' };
       default:
@@ -65,7 +75,7 @@ export default function TransportOfficeShipmentDetails() {
       >
         {/* HEADER */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity onPress={handleBack} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color={colors.navy} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Shipment #{shipment.id}</Text>
@@ -204,9 +214,9 @@ export default function TransportOfficeShipmentDetails() {
           />
         </View>
 
-        {shipment.status === 'PENDING_ASSIGNMENT' && (
+        {(shipment.status === 'PENDING_ASSIGNMENT' || shipment.status === 'DECLINED') && (
           <Button
-            title="Assign Driver & Vehicle Now →"
+            title={shipment.status === 'DECLINED' ? "Re-assign Driver & Vehicle Now →" : "Assign Driver & Vehicle Now →"}
             onPress={() =>
               router.push({
                 pathname: '/transport-office/shipments/assign',

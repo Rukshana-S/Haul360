@@ -11,30 +11,37 @@ import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/components/ui/Screen';
 import { Button } from '@/components/ui/Button';
 import { colors } from '@/theme/colors';
-import { typography } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
 import { useTransportOffice } from '@/context/TransportOfficeContext';
 import { BreakdownStatus } from '@/constants/transportOfficeMockData';
 
 const STAGES: Array<{ key: BreakdownStatus; title: string; desc: string }> = [
-  { key: 'MECHANIC_REQUESTED', title: 'Request Sent', desc: 'Awaiting mechanic confirmation' },
-  { key: 'MECHANIC_ACCEPTED', title: 'Mechanic Accepted', desc: 'Dispatched from workshop' },
-  { key: 'MECHANIC_ON_WAY', title: 'Mechanic On The Way', desc: 'En route with service van' },
-  { key: 'MECHANIC_ARRIVED', title: 'Mechanic Arrived', desc: 'On-site vehicle inspection' },
-  { key: 'DIAGNOSING', title: 'Diagnosing Problem', desc: 'Scanning engine & systems' },
-  { key: 'REPAIRING', title: 'Repair In Progress', desc: 'Part replacement & tuning' },
-  { key: 'REPAIRED', title: 'Repair Completed', desc: 'Vehicle tested & roadworthy' },
-  { key: 'RESOLVED', title: 'Resolved', desc: 'Driver cleared to resume haul' },
+  { key: 'MECHANIC_REQUESTED', title: 'Request Sent', desc: 'Dispatched to roadside mechanic network' },
+  { key: 'MECHANIC_ACCEPTED', title: 'Mechanic Accepted', desc: 'Accepted by technician & preparing tools' },
+  { key: 'MECHANIC_ON_WAY', title: 'Mechanic On The Way', desc: 'En route to vehicle breakdown coordinates' },
+  { key: 'MECHANIC_ARRIVED', title: 'Mechanic Arrived', desc: 'On-site at breakdown location' },
+  { key: 'DIAGNOSING', title: 'Diagnosing Problem', desc: 'Scanning electronic systems & mechanical inspection' },
+  { key: 'REPAIRING', title: 'Repair In Progress', desc: 'Component replacement & calibration' },
+  { key: 'REPAIRED', title: 'Ready for Testing / Repaired', desc: 'System test & roadworthiness verified' },
+  { key: 'RESOLVED', title: 'Completed & Resolved', desc: 'Driver cleared to resume highway freight haul' },
 ];
 
 export default function MechanicStatusScreen() {
   const { breakdownId } = useLocalSearchParams<{ breakdownId?: string }>();
-  const { breakdowns, progressMechanicStatus, getBreakdownById } = useTransportOffice();
+  const { breakdowns, getBreakdownById } = useTransportOffice();
 
   const incident = breakdownId
     ? getBreakdownById(breakdownId)
     : breakdowns[0];
+
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/transport-office/breakdowns' as any);
+    }
+  };
 
   if (!incident) {
     return (
@@ -42,7 +49,11 @@ export default function MechanicStatusScreen() {
         <View style={styles.notFoundContainer}>
           <Ionicons name="alert-circle-outline" size={48} color={colors.textSecondary} />
           <Text style={styles.notFoundTitle}>Incident Not Found</Text>
-          <Button title="Back to Breakdowns" onPress={() => router.back()} style={{ marginTop: spacing.md }} />
+          <Button
+            title="Back to Breakdowns"
+            onPress={handleBack}
+            style={{ marginTop: spacing.md }}
+          />
         </View>
       </Screen>
     );
@@ -52,10 +63,6 @@ export default function MechanicStatusScreen() {
   const activeIndex = currentStageIndex >= 0 ? currentStageIndex : 0;
   const isCompleted = incident.status === 'REPAIRED' || incident.status === 'RESOLVED';
 
-  const handleSimulateNextStage = () => {
-    progressMechanicStatus(incident.id);
-  };
-
   return (
     <Screen safeArea style={styles.container}>
       <ScrollView
@@ -64,7 +71,7 @@ export default function MechanicStatusScreen() {
       >
         {/* HEADER */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity onPress={handleBack} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color={colors.navy} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Mechanic Live Tracking</Text>
@@ -87,6 +94,17 @@ export default function MechanicStatusScreen() {
             <Ionicons name="time" size={14} color={colors.navy} style={{ marginRight: 4 }} />
             <Text style={styles.etaBadgeText}>
               {isCompleted ? 'SERVICE COMPLETED' : `ETA: ~${incident.mechanicEtaMinutes || 18} mins`}
+            </Text>
+          </View>
+        </View>
+
+        {/* READ ONLY OBSERVATION NOTICE */}
+        <View style={styles.readOnlyNoticeBox}>
+          <Ionicons name="information-circle" size={20} color={colors.blue} style={{ marginRight: 8 }} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.readOnlyNoticeTitle}>Real-Time Telematics & Progress</Text>
+            <Text style={styles.readOnlyNoticeDesc}>
+              Repair lifecycle updates are broadcasted directly by the assigned technician. Transport Office observes the progress in read-only mode.
             </Text>
           </View>
         </View>
@@ -145,36 +163,27 @@ export default function MechanicStatusScreen() {
           </View>
         </View>
 
-        {/* SIMULATE PROGRESSION CONTROL */}
-        <View style={styles.simulationControlBox}>
-          <Text style={styles.simLabel}>Operations & Simulation Actions</Text>
-          {!isCompleted ? (
-            <Button
-              title="Advance Mechanic Repair Stage →"
-              onPress={handleSimulateNextStage}
-              style={styles.advanceBtn}
-            />
-          ) : (
-            <View style={styles.completedNotice}>
-              <Ionicons name="checkmark-circle" size={24} color={colors.green} style={{ marginRight: 8 }} />
-              <Text style={styles.completedText}>
-                Repair complete! Driver has been notified to inspect and resume the haul.
-              </Text>
-            </View>
-          )}
+        {/* VEHICLE REPLACEMENT CONTINGENCY */}
+        {!isCompleted && (
+          <View style={styles.contingencyCard}>
+            <Text style={styles.contingencyTitle}>Severe Breakdown / Vehicle Unusable?</Text>
+            <Text style={styles.contingencyDesc}>
+              If on-site repair is not feasible, dispatch a replacement vehicle asset from your yard so the driver can transfer cargo and resume the haul.
+            </Text>
 
-          <Button
-            title="Replace Vehicle Asset (Severe Fault)"
-            variant="outline"
-            onPress={() =>
-              router.push({
-                pathname: '/transport-office/breakdowns/replace-vehicle',
-                params: { breakdownId: incident.id },
-              } as any)
-            }
-            style={{ marginTop: spacing.sm }}
-          />
-        </View>
+            <Button
+              title="Replace Vehicle for Shipment"
+              variant="outline"
+              onPress={() =>
+                router.push({
+                  pathname: '/transport-office/breakdowns/replace-vehicle',
+                  params: { breakdownId: incident.id },
+                } as any)
+              }
+              style={{ marginTop: spacing.xs }}
+            />
+          </View>
+        )}
       </ScrollView>
     </Screen>
   );
@@ -249,6 +258,26 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: 'bold',
     color: colors.navy,
+  },
+  readOnlyNoticeBox: {
+    flexDirection: 'row',
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  readOnlyNoticeTitle: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: colors.navy,
+  },
+  readOnlyNoticeDesc: {
+    fontSize: 11,
+    color: '#334155',
+    lineHeight: 16,
+    marginTop: 2,
   },
   stagesCard: {
     backgroundColor: '#FFFFFF',
@@ -332,7 +361,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 1,
   },
-  simulationControlBox: {
+  contingencyCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: radius.lg,
     padding: spacing.md,
@@ -340,28 +369,17 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
     marginBottom: spacing.lg,
   },
-  simLabel: {
-    fontSize: 11,
+  contingencyTitle: {
+    fontSize: 13,
     fontWeight: 'bold',
+    color: colors.navy,
+    marginBottom: 4,
+  },
+  contingencyDesc: {
+    fontSize: 11,
     color: colors.textSecondary,
-    marginBottom: spacing.sm,
-    letterSpacing: 0.3,
-  },
-  advanceBtn: {
-    backgroundColor: colors.navy,
-  },
-  completedNotice: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#DCFCE7',
-    borderRadius: radius.md,
-    padding: spacing.sm,
-  },
-  completedText: {
-    flex: 1,
-    fontSize: 12,
-    color: '#15803D',
-    fontWeight: '500',
+    lineHeight: 16,
+    marginBottom: spacing.xs,
   },
   notFoundContainer: {
     flex: 1,

@@ -34,7 +34,9 @@ export default function TransportOfficeDashboard() {
     (s) => s.status === 'PENDING_ASSIGNMENT' || s.status === 'ASSIGNMENT_PENDING'
   );
 
-  const declinedShipments = shipments.filter((s) => !!s.declineReason && s.status === 'PENDING_ASSIGNMENT');
+  const declinedShipments = shipments.filter(
+    (s) => s.status === 'DECLINED' || (!!s.declineReason && s.status === 'PENDING_ASSIGNMENT')
+  );
 
   const availableDriversCount = drivers.filter((d) => d.availability === 'AVAILABLE').length;
 

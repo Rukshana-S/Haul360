@@ -45,11 +45,19 @@ export default function DriverCurrentTripScreen() {
     (b) => b.driverId === driverId && b.status !== 'RESOLVED' && b.status !== 'REPAIRED'
   );
 
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/office-driver/assignments');
+    }
+  };
+
   if (!activeTrip) {
     return (
       <Screen safeArea style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity onPress={handleBack} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color={colors.navy} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Active Trip Dispatch</Text>
@@ -94,7 +102,7 @@ export default function DriverCurrentTripScreen() {
     <Screen safeArea style={styles.container}>
       {/* HEADER */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={colors.navy} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Current Haul #{activeTrip.id}</Text>

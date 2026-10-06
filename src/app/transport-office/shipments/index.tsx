@@ -49,6 +49,8 @@ export default function TransportOfficeShipmentsList() {
         return { label: 'UNASSIGNED', bg: '#F1F5F9', text: '#475569', dot: '#64748B' };
       case 'DELIVERED':
         return { label: 'DELIVERED', bg: '#E0E7FF', text: '#4338CA', dot: '#6366F1' };
+      case 'DECLINED':
+        return { label: 'DECLINED', bg: '#FEE2E2', text: '#B91C1C', dot: '#DC2626' };
       case 'CANCELLED':
       default:
         return { label: 'CANCELLED', bg: '#FEE2E2', text: '#B91C1C', dot: '#DC2626' };
@@ -61,6 +63,7 @@ export default function TransportOfficeShipmentsList() {
     { key: 'ASSIGNMENT_PENDING', label: 'Pending' },
     { key: 'ACCEPTED', label: 'Accepted' },
     { key: 'IN_TRANSIT', label: 'In Transit' },
+    { key: 'DECLINED', label: 'Declined' },
     { key: 'DELIVERED', label: 'Delivered' },
   ];
 
@@ -237,7 +240,7 @@ export default function TransportOfficeShipmentsList() {
 
                 {/* ACTIONS */}
                 <View style={styles.cardActionsRow}>
-                  {shipment.status === 'PENDING_ASSIGNMENT' ? (
+                  {shipment.status === 'PENDING_ASSIGNMENT' || shipment.status === 'DECLINED' ? (
                     <TouchableOpacity
                       style={styles.assignButton}
                       activeOpacity={0.85}
@@ -249,7 +252,9 @@ export default function TransportOfficeShipmentsList() {
                       }
                     >
                       <Ionicons name="person-add" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
-                      <Text style={styles.assignButtonText}>Assign Driver + Vehicle</Text>
+                      <Text style={styles.assignButtonText}>
+                        {shipment.status === 'DECLINED' ? 'Re-assign Driver + Vehicle' : 'Assign Driver + Vehicle'}
+                      </Text>
                     </TouchableOpacity>
                   ) : (
                     <TouchableOpacity

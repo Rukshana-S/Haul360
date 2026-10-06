@@ -25,11 +25,14 @@ export interface OfficeDriver {
   documentStatus: 'VERIFIED' | 'PENDING' | 'EXPIRED';
   isFirstLogin: boolean;
   tempPassword?: string;
+  isActive?: boolean;
   availability: 'AVAILABLE' | 'ASSIGNMENT_PENDING' | 'BUSY' | 'OFFLINE';
   currentShipmentId?: string | null;
   currentVehicleId?: string | null;
   completedTripsCount: number;
   rating: number;
+  ratingCount?: number;
+  lastRatedDate?: string;
   experienceYears: number;
   avatarUrl?: string;
   joinedDate: string;
@@ -46,6 +49,7 @@ export interface OfficeVehicle {
   rcNumber: string;
   insuranceStatus: 'VALID' | 'EXPIRING_SOON' | 'EXPIRED';
   permitStatus: 'NATIONAL_PERMIT' | 'STATE_PERMIT';
+  isActive?: boolean;
   status: 'AVAILABLE' | 'ASSIGNED' | 'IN_TRIP' | 'MAINTENANCE' | 'OFFLINE';
   currentDriverId?: string | null;
   currentShipmentId?: string | null;
@@ -56,6 +60,7 @@ export type ShipmentStatus =
   | 'PENDING_ASSIGNMENT'
   | 'ASSIGNMENT_PENDING'
   | 'ACCEPTED'
+  | 'DECLINED'
   | 'IN_TRANSIT'
   | 'DELIVERED'
   | 'CANCELLED';
@@ -92,6 +97,7 @@ export interface OfficeShipment {
   tripStage?: TripStage;
   assignedDriverId?: string | null;
   assignedVehicleId?: string | null;
+  declinedDriverId?: string | null;
   declineReason?: string | null;
   createdAt: string;
   timeline: ShipmentTimelineEvent[];
@@ -218,11 +224,14 @@ export const initialOfficeDrivers: OfficeDriver[] = [
     licenseExpiry: '2028-11-20',
     documentStatus: 'VERIFIED',
     isFirstLogin: false,
-    availability: 'AVAILABLE',
-    currentShipmentId: null,
-    currentVehicleId: null,
+    isActive: true,
+    availability: 'ASSIGNMENT_PENDING',
+    currentShipmentId: 'HS1024',
+    currentVehicleId: 'VEH-001',
     completedTripsCount: 142,
     rating: 4.85,
+    ratingCount: 28,
+    lastRatedDate: 'Yesterday',
     experienceYears: 9,
     joinedDate: '12 Jan 2024',
   },
@@ -238,11 +247,14 @@ export const initialOfficeDrivers: OfficeDriver[] = [
     licenseExpiry: '2030-05-15',
     documentStatus: 'VERIFIED',
     isFirstLogin: false,
+    isActive: true,
     availability: 'AVAILABLE',
     currentShipmentId: null,
     currentVehicleId: null,
     completedTripsCount: 88,
     rating: 4.7,
+    ratingCount: 19,
+    lastRatedDate: '02 Oct 2026',
     experienceYears: 6,
     joinedDate: '04 Mar 2024',
   },
@@ -258,11 +270,14 @@ export const initialOfficeDrivers: OfficeDriver[] = [
     licenseExpiry: '2027-08-10',
     documentStatus: 'VERIFIED',
     isFirstLogin: false,
+    isActive: true,
     availability: 'BUSY',
     currentShipmentId: 'HS1019',
     currentVehicleId: 'VEH-002',
     completedTripsCount: 210,
     rating: 4.9,
+    ratingCount: 42,
+    lastRatedDate: '28 Sep 2026',
     experienceYears: 14,
     joinedDate: '18 Nov 2023',
   },
@@ -279,11 +294,13 @@ export const initialOfficeDrivers: OfficeDriver[] = [
     documentStatus: 'VERIFIED',
     isFirstLogin: true,
     tempPassword: 'H360@5821',
+    isActive: true,
     availability: 'AVAILABLE',
     currentShipmentId: null,
     currentVehicleId: null,
     completedTripsCount: 35,
     rating: 4.6,
+    ratingCount: 8,
     experienceYears: 4,
     joinedDate: '01 Oct 2026',
   },
@@ -299,13 +316,39 @@ export const initialOfficeDrivers: OfficeDriver[] = [
     licenseExpiry: '2026-12-31',
     documentStatus: 'VERIFIED',
     isFirstLogin: false,
+    isActive: true,
     availability: 'OFFLINE',
     currentShipmentId: null,
     currentVehicleId: null,
     completedTripsCount: 320,
     rating: 4.95,
+    ratingCount: 65,
+    lastRatedDate: '15 Sep 2026',
     experienceYears: 18,
     joinedDate: '10 Aug 2023',
+  },
+  {
+    id: 'H360-D-1047',
+    officeId: 'OFFICE-001',
+    name: 'Gopal Krishnan',
+    phone: '9876543215',
+    email: 'gopal.k@haul360.com',
+    age: 45,
+    address: '19 North Car Street, Tirunelveli, Tamil Nadu',
+    licenseNumber: 'TN-72-2009-0099881',
+    licenseExpiry: '2027-04-14',
+    documentStatus: 'VERIFIED',
+    isFirstLogin: false,
+    isActive: false,
+    availability: 'OFFLINE',
+    currentShipmentId: null,
+    currentVehicleId: null,
+    completedTripsCount: 180,
+    rating: 4.5,
+    ratingCount: 30,
+    lastRatedDate: '20 Aug 2026',
+    experienceYears: 16,
+    joinedDate: '05 Jan 2023',
   },
 ];
 
@@ -321,9 +364,10 @@ export const initialOfficeVehicles: OfficeVehicle[] = [
     rcNumber: 'RC-TN38-2021-9988',
     insuranceStatus: 'VALID',
     permitStatus: 'NATIONAL_PERMIT',
-    status: 'AVAILABLE',
-    currentDriverId: null,
-    currentShipmentId: null,
+    isActive: true,
+    status: 'ASSIGNED',
+    currentDriverId: 'H360-D-1042',
+    currentShipmentId: 'HS1024',
     lastMaintenanceDate: '15 Sep 2026',
   },
   {
@@ -337,6 +381,7 @@ export const initialOfficeVehicles: OfficeVehicle[] = [
     rcNumber: 'RC-TN38-2022-4411',
     insuranceStatus: 'VALID',
     permitStatus: 'NATIONAL_PERMIT',
+    isActive: true,
     status: 'IN_TRIP',
     currentDriverId: 'H360-D-1044',
     currentShipmentId: 'HS1019',
@@ -353,6 +398,7 @@ export const initialOfficeVehicles: OfficeVehicle[] = [
     rcNumber: 'RC-TN38-2023-1122',
     insuranceStatus: 'VALID',
     permitStatus: 'NATIONAL_PERMIT',
+    isActive: true,
     status: 'AVAILABLE',
     currentDriverId: null,
     currentShipmentId: null,
@@ -369,6 +415,7 @@ export const initialOfficeVehicles: OfficeVehicle[] = [
     rcNumber: 'RC-TN38-2024-7733',
     insuranceStatus: 'VALID',
     permitStatus: 'STATE_PERMIT',
+    isActive: true,
     status: 'AVAILABLE',
     currentDriverId: null,
     currentShipmentId: null,
@@ -385,10 +432,28 @@ export const initialOfficeVehicles: OfficeVehicle[] = [
     rcNumber: 'RC-TN38-2020-5566',
     insuranceStatus: 'VALID',
     permitStatus: 'NATIONAL_PERMIT',
+    isActive: true,
     status: 'MAINTENANCE',
     currentDriverId: null,
     currentShipmentId: null,
     lastMaintenanceDate: '01 Oct 2026',
+  },
+  {
+    id: 'VEH-006',
+    officeId: 'OFFICE-001',
+    vehicleNumber: 'TN38LM2468',
+    vehicleType: '10-Wheeler Heavy',
+    model: 'Mahindra Blazo X 28',
+    capacityKg: 11000,
+    fuelType: 'Diesel',
+    rcNumber: 'RC-TN38-2019-3311',
+    insuranceStatus: 'VALID',
+    permitStatus: 'NATIONAL_PERMIT',
+    isActive: false,
+    status: 'OFFLINE',
+    currentDriverId: null,
+    currentShipmentId: null,
+    lastMaintenanceDate: '01 May 2026',
   },
 ];
 
@@ -406,14 +471,14 @@ export const initialOfficeShipments: OfficeShipment[] = [
     requiredCapacityKg: 10000,
     pickupTime: 'Today, 10:00 AM',
     expectedDelivery: 'Today, 06:30 PM',
-    status: 'PENDING_ASSIGNMENT',
-    tripStage: undefined,
-    assignedDriverId: null,
-    assignedVehicleId: null,
+    status: 'ASSIGNMENT_PENDING',
+    tripStage: 'ASSIGNED',
+    assignedDriverId: 'H360-D-1042',
+    assignedVehicleId: 'VEH-001',
     createdAt: '05 Oct 2026, 08:30 AM',
     timeline: [
       { title: 'Shipment Created', time: '08:30 AM', completed: true, description: 'Booked by Haul360 Enterprise Logistics' },
-      { title: 'Assigned Driver & Vehicle', time: '--', completed: false, description: 'Pending fleet assignment' },
+      { title: 'Assigned Driver & Vehicle', time: '08:45 AM', completed: true, description: 'Kumar S. • TN38AB1234' },
       { title: 'Driver Acceptance', time: '--', completed: false, description: 'Pending driver confirmation' },
       { title: 'Trip Started', time: '--', completed: false, description: 'Pickup & transit' },
       { title: 'In Transit', time: '--', completed: false, description: 'En route via NH-44' },

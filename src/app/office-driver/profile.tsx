@@ -170,6 +170,17 @@ export default function OfficeDriverProfileScreen() {
 
           <TouchableOpacity
             style={styles.menuItem}
+            onPress={() => router.push('/office-driver/change-password' as any)}
+          >
+            <View style={styles.menuLeft}>
+              <Ionicons name="key-outline" size={20} color={colors.navy} style={{ marginRight: 12 }} />
+              <Text style={styles.menuText}>Change Driver Password</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.menuItem}
             onPress={() => router.push('/office-driver/settings' as any)}
           >
             <View style={styles.menuLeft}>

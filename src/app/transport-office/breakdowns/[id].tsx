@@ -22,13 +22,21 @@ export default function TransportOfficeBreakdownDetails() {
 
   const incident = getBreakdownById(id || '');
 
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/transport-office/breakdowns' as any);
+    }
+  };
+
   if (!incident) {
     return (
       <Screen safeArea style={styles.container}>
         <View style={styles.notFoundContainer}>
           <Ionicons name="alert-circle-outline" size={48} color={colors.textSecondary} />
           <Text style={styles.notFoundTitle}>Breakdown Incident Not Found</Text>
-          <Button title="Back to Breakdowns" onPress={() => router.back()} style={{ marginTop: spacing.md }} />
+          <Button title="Back to Breakdowns" onPress={handleBack} style={{ marginTop: spacing.md }} />
         </View>
       </Screen>
     );
@@ -46,7 +54,7 @@ export default function TransportOfficeBreakdownDetails() {
       >
         {/* HEADER */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity onPress={handleBack} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color={colors.navy} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Incident #{incident.id}</Text>

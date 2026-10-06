@@ -161,7 +161,11 @@ export default function AddVehicleScreen() {
             <TouchableOpacity
               onPress={() => {
                 resetForm();
-                router.back();
+                if (router.canGoBack()) {
+                  router.back();
+                } else {
+                  router.replace('/transport-office/vehicles');
+                }
               }}
               style={styles.backButton}
             >

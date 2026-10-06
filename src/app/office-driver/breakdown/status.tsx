@@ -11,10 +11,21 @@ import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/components/ui/Screen';
 import { Button } from '@/components/ui/Button';
 import { colors } from '@/theme/colors';
-import { typography } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
 import { useTransportOffice } from '@/context/TransportOfficeContext';
+import { BreakdownStatus } from '@/constants/transportOfficeMockData';
+
+const DRIVER_MECH_STAGES: Array<{ key: BreakdownStatus; title: string; desc: string }> = [
+  { key: 'MECHANIC_REQUESTED', title: 'Request Sent', desc: 'Dispatch contacted nearest mechanic' },
+  { key: 'MECHANIC_ACCEPTED', title: 'Mechanic Accepted', desc: 'Assistance confirmed & dispatched' },
+  { key: 'MECHANIC_ON_WAY', title: 'Mechanic On The Way', desc: 'Service van en route on highway' },
+  { key: 'MECHANIC_ARRIVED', title: 'Mechanic Arrived', desc: 'Technician on-site at vehicle' },
+  { key: 'DIAGNOSING', title: 'Diagnosing Problem', desc: 'Running diagnostic inspection' },
+  { key: 'REPAIRING', title: 'Repair In Progress', desc: 'Fixing parts & tuning components' },
+  { key: 'REPAIRED', title: 'Repair Completed', desc: 'Vehicle tested and ready for haul' },
+  { key: 'RESOLVED', title: 'Resolved & Clear', desc: 'Trip ready to resume' },
+];
 
 export default function DriverBreakdownStatusScreen() {
   const {
@@ -22,6 +33,14 @@ export default function DriverBreakdownStatusScreen() {
     breakdowns,
     resumeTripAfterBreakdown,
   } = useTransportOffice();
+
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/office-driver/trips/current' as any);
+    }
+  };
 
   const driverId = currentDriverUser?.id || 'H360-D-1042';
 
@@ -36,8 +55,8 @@ export default function DriverBreakdownStatusScreen() {
           <Ionicons name="shield-checkmark-outline" size={48} color={colors.green} />
           <Text style={styles.emptyTitle}>No Active Roadside Incident</Text>
           <Button
-            title="Back to Dashboard"
-            onPress={() => router.replace('/office-driver' as any)}
+            title="Back to Active Trip"
+            onPress={handleBack}
             style={{ marginTop: spacing.md }}
           />
         </View>
@@ -46,6 +65,8 @@ export default function DriverBreakdownStatusScreen() {
   }
 
   const isRepaired = incident.status === 'REPAIRED' || incident.status === 'RESOLVED';
+  const currentStageIndex = DRIVER_MECH_STAGES.findIndex((s) => s.key === incident.status);
+  const activeIndex = currentStageIndex >= 0 ? currentStageIndex : 0;
 
   const handleResumeTrip = () => {
     resumeTripAfterBreakdown(incident.id);
@@ -60,10 +81,10 @@ export default function DriverBreakdownStatusScreen() {
       >
         {/* HEADER */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity onPress={handleBack} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color={colors.navy} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Roadside Assist Tracker</Text>
+          <Text style={styles.headerTitle}>Roadside Assistance Tracker</Text>
           <View style={{ width: 24 }} />
         </View>
 
@@ -78,7 +99,7 @@ export default function DriverBreakdownStatusScreen() {
                 style={{ marginRight: 4 }}
               />
               <Text style={[styles.statusBadgeText, isRepaired && { color: colors.green }]}>
-                {isRepaired ? 'REPAIR COMPLETED' : 'DISPATCH NOTIFIED'}
+                {isRepaired ? 'REPAIR COMPLETED' : 'ROADSIDE ASSIST ACTIVE'}
               </Text>
             </View>
             <Text style={styles.reportedTime}>{incident.reportedAt}</Text>
@@ -90,13 +111,21 @@ export default function DriverBreakdownStatusScreen() {
           </Text>
 
           <Text style={styles.noticeText}>
-            Your Transport Office dispatch hub has received your telematics breakdown report.
+            Your transport office dispatch and attending mechanic are coordinating on this incident.
+          </Text>
+        </View>
+
+        {/* READ ONLY TRACKING NOTICE */}
+        <View style={styles.readOnlyNotice}>
+          <Ionicons name="information-circle" size={18} color={colors.blue} style={{ marginRight: 6 }} />
+          <Text style={styles.readOnlyNoticeText}>
+            Mechanic assistance is tracked in real-time. Status updates are broadcasted directly by the attending technician.
           </Text>
         </View>
 
         {/* MECHANIC LIVE DISPATCH DETAILS */}
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Mechanic Dispatch Status</Text>
+          <Text style={styles.sectionTitle}>Mechanic Assignment</Text>
 
           {incident.assignedMechanicName ? (
             <View style={styles.mechBox}>
@@ -104,7 +133,7 @@ export default function DriverBreakdownStatusScreen() {
                 <Ionicons name="construct" size={22} color={colors.navy} />
                 <View style={{ flex: 1, marginLeft: spacing.sm }}>
                   <Text style={styles.mechName}>{incident.assignedMechanicName}</Text>
-                  <Text style={styles.mechSub}>Highway Fleet Care</Text>
+                  <Text style={styles.mechSub}>Highway Fleet Care Unit</Text>
                 </View>
                 <View style={styles.etaPill}>
                   <Text style={styles.etaText}>
@@ -114,14 +143,14 @@ export default function DriverBreakdownStatusScreen() {
               </View>
 
               <View style={styles.statusRow}>
-                <Text style={styles.statusLabel}>Live Service Stage:</Text>
+                <Text style={styles.statusLabel}>Live Repair Status:</Text>
                 <Text style={styles.statusValue}>{incident.status.replace(/_/g, ' ')}</Text>
               </View>
             </View>
           ) : (
             <View style={styles.coordinatingBox}>
               <Ionicons name="sync-outline" size={24} color={colors.blue} style={{ marginBottom: 4 }} />
-              <Text style={styles.coordinatingTitle}>Coordinating Nearest Highway Mechanic</Text>
+              <Text style={styles.coordinatingTitle}>Coordinating Highway Assistance</Text>
               <Text style={styles.coordinatingSub}>
                 Your transport office is selecting the best available mechanic for your location.
               </Text>
@@ -129,14 +158,63 @@ export default function DriverBreakdownStatusScreen() {
           )}
         </View>
 
-        {/* INCIDENT DETAILS */}
+        {/* TIMELINE PROGRESSION */}
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Incident Manifest Context</Text>
+          <Text style={styles.sectionTitle}>Assistance Progression (Read-Only)</Text>
 
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Driver:</Text>
-            <Text style={styles.infoVal}>{incident.driverName}</Text>
+          <View style={styles.timelineList}>
+            {DRIVER_MECH_STAGES.map((stage, idx) => {
+              const isPastOrCurrent = idx <= activeIndex;
+              const isCurrent = idx === activeIndex;
+              const isLast = idx === DRIVER_MECH_STAGES.length - 1;
+
+              return (
+                <View key={stage.key} style={styles.timelineItem}>
+                  <View style={styles.timelineIconCol}>
+                    <View
+                      style={[
+                        styles.timelineCircle,
+                        isPastOrCurrent && styles.timelineCircleActive,
+                        isCurrent && styles.timelineCircleCurrent,
+                      ]}
+                    >
+                      {isPastOrCurrent ? (
+                        <Ionicons name="checkmark" size={11} color="#FFFFFF" />
+                      ) : (
+                        <View style={styles.timelineCirclePending} />
+                      )}
+                    </View>
+                    {!isLast && (
+                      <View
+                        style={[
+                          styles.timelineBar,
+                          isPastOrCurrent && idx < activeIndex && styles.timelineBarActive,
+                        ]}
+                      />
+                    )}
+                  </View>
+
+                  <View style={styles.timelineContentCol}>
+                    <Text
+                      style={[
+                        styles.stageTitle,
+                        isCurrent && styles.stageTitleCurrent,
+                        !isPastOrCurrent && styles.stageTitlePending,
+                      ]}
+                    >
+                      {stage.title}
+                    </Text>
+                    <Text style={styles.stageDesc}>{stage.desc}</Text>
+                  </View>
+                </View>
+              );
+            })}
           </View>
+        </View>
+
+        {/* INCIDENT CONTEXT */}
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Incident Context</Text>
 
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Vehicle Asset:</Text>
@@ -163,9 +241,9 @@ export default function DriverBreakdownStatusScreen() {
           />
         ) : (
           <Button
-            title="Return to Live Trip"
+            title="Return to Live Trip Dispatch"
             variant="outline"
-            onPress={() => router.push('/office-driver/trips/current' as any)}
+            onPress={handleBack}
             style={{ marginBottom: spacing.lg }}
           />
         )}
@@ -254,6 +332,21 @@ const styles = StyleSheet.create({
     borderTopColor: '#FECACA',
     lineHeight: 16,
   },
+  readOnlyNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    borderRadius: radius.md,
+    padding: spacing.sm,
+  },
+  readOnlyNoticeText: {
+    fontSize: 11,
+    color: '#1E40AF',
+    flex: 1,
+    lineHeight: 15,
+  },
   sectionCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: radius.lg,
@@ -333,6 +426,71 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 2,
     lineHeight: 16,
+  },
+  timelineList: {
+    paddingVertical: spacing.xs,
+  },
+  timelineItem: {
+    flexDirection: 'row',
+  },
+  timelineIconCol: {
+    alignItems: 'center',
+    width: 24,
+  },
+  timelineCircle: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  timelineCircleActive: {
+    backgroundColor: colors.navy,
+  },
+  timelineCircleCurrent: {
+    backgroundColor: colors.orange,
+    borderWidth: 2,
+    borderColor: '#FEF3C7',
+  },
+  timelineCirclePending: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#94A3B8',
+  },
+  timelineBar: {
+    width: 2,
+    flex: 1,
+    minHeight: 22,
+    backgroundColor: '#E2E8F0',
+    marginVertical: 2,
+  },
+  timelineBarActive: {
+    backgroundColor: colors.navy,
+  },
+  timelineContentCol: {
+    flex: 1,
+    paddingLeft: spacing.sm,
+    paddingBottom: spacing.sm,
+  },
+  stageTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.navy,
+  },
+  stageTitleCurrent: {
+    fontWeight: 'bold',
+    color: colors.orange,
+  },
+  stageTitlePending: {
+    color: colors.textSecondary,
+    fontWeight: '400',
+  },
+  stageDesc: {
+    fontSize: 10,
+    color: colors.textSecondary,
+    marginTop: 1,
   },
   infoRow: {
     flexDirection: 'row',

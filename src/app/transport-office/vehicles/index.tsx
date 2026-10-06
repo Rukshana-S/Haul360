@@ -16,7 +16,7 @@ import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
 import { useTransportOffice } from '@/context/TransportOfficeContext';
 
-type VehicleFilter = 'ALL' | 'AVAILABLE' | 'ASSIGNED' | 'IN_TRIP' | 'MAINTENANCE';
+type VehicleFilter = 'ALL' | 'ACTIVE' | 'AVAILABLE' | 'ASSIGNED' | 'IN_TRIP' | 'MAINTENANCE' | 'INACTIVE' | 'OFFLINE';
 
 export default function TransportOfficeVehiclesList() {
   const { vehicles, drivers, shipments } = useTransportOffice();
@@ -33,15 +33,21 @@ export default function TransportOfficeVehiclesList() {
     if (!matchesSearch) return false;
 
     if (activeFilter === 'ALL') return true;
-    if (activeFilter === 'AVAILABLE') return v.status === 'AVAILABLE';
-    if (activeFilter === 'ASSIGNED') return v.status === 'ASSIGNED';
-    if (activeFilter === 'IN_TRIP') return v.status === 'IN_TRIP';
-    if (activeFilter === 'MAINTENANCE') return v.status === 'MAINTENANCE';
+    if (activeFilter === 'ACTIVE') return v.isActive !== false;
+    if (activeFilter === 'INACTIVE') return v.isActive === false;
+    if (activeFilter === 'AVAILABLE') return v.isActive !== false && v.status === 'AVAILABLE';
+    if (activeFilter === 'ASSIGNED') return v.isActive !== false && v.status === 'ASSIGNED';
+    if (activeFilter === 'IN_TRIP') return v.isActive !== false && v.status === 'IN_TRIP';
+    if (activeFilter === 'MAINTENANCE') return v.isActive !== false && v.status === 'MAINTENANCE';
+    if (activeFilter === 'OFFLINE') return v.isActive !== false && v.status === 'OFFLINE';
     return true;
   });
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
+  const getStatusBadge = (vehicleItem: typeof vehicles[0]) => {
+    if (vehicleItem.isActive === false) {
+      return { label: 'INACTIVE', bg: '#F1F5F9', text: '#64748B', dot: '#94A3B8' };
+    }
+    switch (vehicleItem.status) {
       case 'AVAILABLE':
         return { label: 'AVAILABLE', bg: '#DCFCE7', text: '#15803D', dot: '#22C55E' };
       case 'ASSIGNED':
@@ -103,17 +109,32 @@ export default function TransportOfficeVehiclesList() {
           {(
             [
               { key: 'ALL', label: 'All' },
+              { key: 'ACTIVE', label: 'Active' },
               { key: 'AVAILABLE', label: 'Available' },
               { key: 'ASSIGNED', label: 'Assigned' },
               { key: 'IN_TRIP', label: 'In Trip' },
               { key: 'MAINTENANCE', label: 'Maintenance' },
+              { key: 'INACTIVE', label: 'Inactive' },
+              { key: 'OFFLINE', label: 'Offline' },
             ] as const
           ).map((item) => {
             const isSelected = activeFilter === item.key;
             const count =
               item.key === 'ALL'
                 ? vehicles.length
-                : vehicles.filter((v) => v.status === item.key).length;
+                : item.key === 'ACTIVE'
+                ? vehicles.filter((v) => v.isActive !== false).length
+                : item.key === 'INACTIVE'
+                ? vehicles.filter((v) => v.isActive === false).length
+                : item.key === 'AVAILABLE'
+                ? vehicles.filter((v) => v.isActive !== false && v.status === 'AVAILABLE').length
+                : item.key === 'ASSIGNED'
+                ? vehicles.filter((v) => v.isActive !== false && v.status === 'ASSIGNED').length
+                : item.key === 'IN_TRIP'
+                ? vehicles.filter((v) => v.isActive !== false && v.status === 'IN_TRIP').length
+                : item.key === 'MAINTENANCE'
+                ? vehicles.filter((v) => v.isActive !== false && v.status === 'MAINTENANCE').length
+                : vehicles.filter((v) => v.isActive !== false && v.status === 'OFFLINE').length;
 
             return (
               <TouchableOpacity
@@ -146,7 +167,7 @@ export default function TransportOfficeVehiclesList() {
           </View>
         ) : (
           filteredVehicles.map((vehicle) => {
-            const badge = getStatusBadge(vehicle.status);
+            const badge = getStatusBadge(vehicle);
             const currentDriver = drivers.find((d) => d.id === vehicle.currentDriverId);
             const currentShipment = shipments.find((s) => s.id === vehicle.currentShipmentId);
 

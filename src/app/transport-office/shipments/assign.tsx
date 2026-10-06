@@ -30,7 +30,7 @@ export default function AssignShipmentScreen() {
   // Find target shipment
   const targetShipment = shipmentId
     ? getShipmentById(shipmentId)
-    : shipments.find((s) => s.status === 'PENDING_ASSIGNMENT') || shipments[0];
+    : shipments.find((s) => s.status === 'PENDING_ASSIGNMENT' || s.status === 'DECLINED') || shipments[0];
 
   const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
@@ -38,13 +38,21 @@ export default function AssignShipmentScreen() {
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
 
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/transport-office/shipments' as any);
+    }
+  };
+
   if (!targetShipment) {
     return (
       <Screen safeArea style={styles.container}>
         <View style={styles.notFoundContainer}>
           <Ionicons name="alert-circle-outline" size={48} color={colors.textSecondary} />
           <Text style={styles.notFoundTitle}>No Unassigned Shipment Selected</Text>
-          <Button title="Back to Shipments" onPress={() => router.back()} style={{ marginTop: spacing.md }} />
+          <Button title="Back to Shipments" onPress={handleBack} style={{ marginTop: spacing.md }} />
         </View>
       </Screen>
     );
@@ -123,7 +131,7 @@ export default function AssignShipmentScreen() {
       >
         {/* HEADER */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity onPress={handleBack} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color={colors.navy} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Assign Driver & Vehicle</Text>
@@ -173,13 +181,30 @@ export default function AssignShipmentScreen() {
             <Text style={styles.stepTitle}>Select Available Driver</Text>
           </View>
           <Text style={styles.stepSubtitle}>
-            Only eligible, non-busy drivers can be selected for dispatch.
+            Only active, available drivers can be selected for dispatch.
           </Text>
 
           <View style={styles.optionsList}>
             {drivers.map((driver) => {
-              const isEligible = driver.availability === 'AVAILABLE';
+              const isInactive = driver.isActive === false;
+              const isEligible = !isInactive && driver.availability === 'AVAILABLE';
               const isSelected = selectedDriverId === driver.id;
+
+              let statusLabel = 'Available';
+              let reason = '';
+              if (isInactive) {
+                statusLabel = 'Inactive';
+                reason = 'Driver is inactive — Not selectable';
+              } else if (driver.availability === 'BUSY') {
+                statusLabel = 'On Trip';
+                reason = 'Driver is currently busy on active trip';
+              } else if (driver.availability === 'ASSIGNMENT_PENDING') {
+                statusLabel = 'Assigned';
+                reason = 'Driver pending acceptance for another dispatch';
+              } else if (driver.availability === 'OFFLINE') {
+                statusLabel = 'Offline';
+                reason = 'Driver is currently offline';
+              }
 
               return (
                 <TouchableOpacity
@@ -218,6 +243,9 @@ export default function AssignShipmentScreen() {
                       <Text style={styles.optionSub}>
                         {driver.id} • DL: {driver.licenseNumber}
                       </Text>
+                      {!isEligible && reason ? (
+                        <Text style={styles.ineligibleReasonText}>{reason}</Text>
+                      ) : null}
                     </View>
                   </View>
 
@@ -226,6 +254,8 @@ export default function AssignShipmentScreen() {
                       styles.eligibilityBadge,
                       isEligible
                         ? { backgroundColor: '#DCFCE7' }
+                        : isInactive
+                        ? { backgroundColor: '#F1F5F9' }
                         : driver.availability === 'BUSY'
                         ? { backgroundColor: '#FEF3C7' }
                         : { backgroundColor: '#F1F5F9' },
@@ -236,18 +266,14 @@ export default function AssignShipmentScreen() {
                         styles.eligibilityText,
                         isEligible
                           ? { color: '#15803D' }
+                          : isInactive
+                          ? { color: '#64748B' }
                           : driver.availability === 'BUSY'
                           ? { color: '#B45309' }
                           : { color: '#64748B' },
                       ]}
                     >
-                      {driver.availability === 'AVAILABLE'
-                        ? 'Available'
-                        : driver.availability === 'BUSY'
-                        ? 'On Trip'
-                        : driver.availability === 'ASSIGNMENT_PENDING'
-                        ? 'Assigned'
-                        : 'Offline'}
+                      {isEligible ? 'Available ✓' : statusLabel}
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -265,18 +291,21 @@ export default function AssignShipmentScreen() {
             <Text style={styles.stepTitle}>Select Compliant Vehicle</Text>
           </View>
           <Text style={styles.stepSubtitle}>
-            Capacity must be ≥ {targetShipment.cargoWeightKg.toLocaleString()} KG and vehicle must be in yard available.
+            Capacity must be ≥ {targetShipment.cargoWeightKg.toLocaleString()} KG and vehicle must be active in yard available.
           </Text>
 
           <View style={styles.optionsList}>
             {vehicles.map((vehicle) => {
+              const isInactive = vehicle.isActive === false;
               const hasCapacity = vehicle.capacityKg >= targetShipment.cargoWeightKg;
               const isAvailable = vehicle.status === 'AVAILABLE';
-              const isEligible = hasCapacity && isAvailable;
+              const isEligible = !isInactive && hasCapacity && isAvailable;
               const isSelected = selectedVehicleId === vehicle.id;
 
               let reason = '';
-              if (!hasCapacity) {
+              if (isInactive) {
+                reason = 'Vehicle is inactive — Not selectable';
+              } else if (!hasCapacity) {
                 reason = `Capacity too low (${vehicle.capacityKg.toLocaleString()} KG < ${targetShipment.cargoWeightKg.toLocaleString()} KG)`;
               } else if (!isAvailable) {
                 reason = vehicle.status === 'IN_TRIP' ? 'Currently In Trip' : vehicle.status === 'MAINTENANCE' ? 'In Maintenance' : 'Assigned';
@@ -339,7 +368,7 @@ export default function AssignShipmentScreen() {
                         isEligible ? { color: '#15803D' } : { color: '#B91C1C' },
                       ]}
                     >
-                      {isEligible ? 'Eligible' : 'Unavailable'}
+                      {isEligible ? 'Eligible' : isInactive ? 'Inactive' : 'Unavailable'}
                     </Text>
                   </View>
                 </TouchableOpacity>

@@ -24,10 +24,18 @@ export default function TransportOfficeSettingsScreen() {
     router.replace('/auth/login?role=Transport%20Office' as any);
   };
 
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/transport-office/profile' as any);
+    }
+  };
+
   return (
     <Screen safeArea style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={colors.navy} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Transport Hub Settings</Text>
@@ -83,7 +91,10 @@ export default function TransportOfficeSettingsScreen() {
         <View style={styles.card}>
           <Text style={styles.sectionHeader}>Security & Fleet Access</Text>
 
-          <TouchableOpacity style={styles.linkRow}>
+          <TouchableOpacity
+            style={styles.linkRow}
+            onPress={() => router.push('/transport-office/change-password' as any)}
+          >
             <Text style={styles.linkTitle}>Change Master Password</Text>
             <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
           </TouchableOpacity>

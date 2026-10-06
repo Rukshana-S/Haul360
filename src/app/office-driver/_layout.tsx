@@ -24,6 +24,7 @@ export default function OfficeDriverLayout() {
 
   return (
     <Tabs
+      backBehavior="history"
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.navy,
@@ -118,6 +119,7 @@ export default function OfficeDriverLayout() {
       <Tabs.Screen name="first-login" options={{ href: null }} />
       <Tabs.Screen name="notifications" options={{ href: null }} />
       <Tabs.Screen name="settings" options={{ href: null }} />
+      <Tabs.Screen name="change-password" options={{ href: null }} />
     </Tabs>
   );
 }

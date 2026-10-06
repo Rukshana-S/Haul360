@@ -148,11 +148,13 @@ export default function AddDriverScreen() {
               onPress={() => {
                 if (step === 3) {
                   resetForm();
-                  router.back();
+                  if (router.canGoBack()) router.back();
+                  else router.replace('/transport-office/drivers');
                 } else if (step > 1) {
                   setStep((step - 1) as any);
                 } else {
-                  router.back();
+                  if (router.canGoBack()) router.back();
+                  else router.replace('/transport-office/drivers');
                 }
               }}
               style={styles.backButton}

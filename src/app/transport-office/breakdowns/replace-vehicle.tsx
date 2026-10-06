@@ -38,13 +38,21 @@ export default function ReplaceVehicleScreen() {
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
 
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/transport-office/breakdowns');
+    }
+  };
+
   if (!incident) {
     return (
       <Screen safeArea style={styles.container}>
         <View style={styles.notFoundContainer}>
           <Ionicons name="alert-circle-outline" size={48} color={colors.textSecondary} />
           <Text style={styles.notFoundTitle}>Incident Record Not Found</Text>
-          <Button title="Back to Breakdowns" onPress={() => router.back()} style={{ marginTop: spacing.md }} />
+          <Button title="Back to Breakdowns" onPress={handleBack} style={{ marginTop: spacing.md }} />
         </View>
       </Screen>
     );
@@ -112,7 +120,7 @@ export default function ReplaceVehicleScreen() {
       >
         {/* HEADER */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity onPress={handleBack} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color={colors.navy} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Emergency Vehicle Replacement</Text>
@@ -144,7 +152,7 @@ export default function ReplaceVehicleScreen() {
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Select Yard Replacement Asset</Text>
           <Text style={styles.sectionSubtitle}>
-            Must be in yard available and satisfy minimum cargo payload (≥ {cargoWeight.toLocaleString()} KG).
+            Must be active in yard available and satisfy minimum cargo payload (≥ {cargoWeight.toLocaleString()} KG).
           </Text>
         </View>
 
@@ -152,8 +160,9 @@ export default function ReplaceVehicleScreen() {
           {vehicles
             .filter((v) => v.id !== incident.vehicleId)
             .map((v) => {
+              const isInactive = v.isActive === false;
               const hasCapacity = v.capacityKg >= cargoWeight;
-              const isAvailable = v.status === 'AVAILABLE';
+              const isAvailable = v.status === 'AVAILABLE' && !isInactive;
               const isEligible = hasCapacity && isAvailable;
               const isSelected = selectedVehicleId === v.id;
 

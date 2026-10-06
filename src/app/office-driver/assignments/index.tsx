@@ -10,13 +10,14 @@ import {
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/components/ui/Screen';
-import { Button } from '@/components/ui/Button';
 import { colors } from '@/theme/colors';
-import { typography } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
 import { useTransportOffice } from '@/context/TransportOfficeContext';
 import { DRIVER_DECLINE_REASONS } from '@/constants/transportOfficeDriverMockData';
+import { ShipmentStatus } from '@/constants/transportOfficeMockData';
+
+type AssignmentTabFilter = 'ALL' | 'PENDING' | 'ACCEPTED' | 'DECLINED';
 
 export default function DriverAssignmentsInbox() {
   const {
@@ -29,42 +30,127 @@ export default function DriverAssignmentsInbox() {
 
   const driverId = currentDriverUser?.id || 'H360-D-1042';
 
-  // Assignments for this driver
-  const myAssignments = shipments.filter(
-    (s) =>
-      s.assignedDriverId === driverId &&
-      (s.status === 'ASSIGNMENT_PENDING' || s.status === 'ACCEPTED')
-  );
+  // Canonical filtered assignments for this specific driver
+  const myAssignments = shipments.filter((s) => {
+    if (s.assignedDriverId === driverId) {
+      return (
+        s.status === 'ASSIGNMENT_PENDING' ||
+        s.status === 'ACCEPTED' ||
+        s.status === 'IN_TRANSIT' ||
+        s.status === 'DELIVERED'
+      );
+    }
+    if (s.declinedDriverId === driverId || (s.assignedDriverId === driverId && s.status === 'DECLINED')) {
+      return s.status === 'DECLINED';
+    }
+    return false;
+  });
 
-  const [activeFilter, setActiveFilter] = useState<'PENDING' | 'ACCEPTED' | 'ALL'>('PENDING');
+  const [activeFilter, setActiveFilter] = useState<AssignmentTabFilter>('ALL');
   const [declineTargetId, setDeclineTargetId] = useState<string | null>(null);
   const [selectedDeclineReason, setSelectedDeclineReason] = useState(DRIVER_DECLINE_REASONS[0]);
   const [successToast, setSuccessToast] = useState<string | null>(null);
 
+  // Dynamic counts derived from canonical driver assignments
+  const pendingCount = myAssignments.filter(
+    (s) => s.assignedDriverId === driverId && s.status === 'ASSIGNMENT_PENDING'
+  ).length;
+
+  const acceptedCount = myAssignments.filter(
+    (s) =>
+      s.assignedDriverId === driverId &&
+      (s.status === 'ACCEPTED' || s.status === 'IN_TRANSIT' || s.status === 'DELIVERED')
+  ).length;
+
+  const declinedCount = myAssignments.filter(
+    (s) => s.status === 'DECLINED' && (s.declinedDriverId === driverId || s.assignedDriverId === driverId)
+  ).length;
+
+  const allCount = myAssignments.length;
+
   const filteredAssignments = myAssignments.filter((s) => {
-    if (activeFilter === 'PENDING') return s.status === 'ASSIGNMENT_PENDING';
-    if (activeFilter === 'ACCEPTED') return s.status === 'ACCEPTED';
+    if (activeFilter === 'PENDING') {
+      return s.assignedDriverId === driverId && s.status === 'ASSIGNMENT_PENDING';
+    }
+    if (activeFilter === 'ACCEPTED') {
+      return (
+        s.assignedDriverId === driverId &&
+        (s.status === 'ACCEPTED' || s.status === 'IN_TRANSIT' || s.status === 'DELIVERED')
+      );
+    }
+    if (activeFilter === 'DECLINED') {
+      return s.status === 'DECLINED' && (s.declinedDriverId === driverId || s.assignedDriverId === driverId);
+    }
     return true;
   });
 
   const handleAccept = (shipmentId: string) => {
     acceptAssignment(shipmentId);
-    setSuccessToast(`Shipment #${shipmentId} Accepted! Starting trip.`);
+    setSuccessToast(`Shipment #${shipmentId} Accepted! Ready for pickup.`);
     setTimeout(() => {
       setSuccessToast(null);
       router.push('/office-driver/trips/current' as any);
-    }, 800);
+    }, 900);
   };
 
   const handleDeclineSubmit = () => {
     if (!declineTargetId) return;
     declineAssignment(declineTargetId, selectedDeclineReason);
+    const target = declineTargetId;
     setDeclineTargetId(null);
-    setSuccessToast(`Assignment #${declineTargetId} declined. Notified Transport Office.`);
+    setSuccessToast(`Assignment #${target} declined. Transport Office notified.`);
     setTimeout(() => {
       setSuccessToast(null);
-    }, 2000);
+    }, 2500);
   };
+
+  const getStatusBadge = (status: ShipmentStatus) => {
+    switch (status) {
+      case 'ASSIGNMENT_PENDING':
+        return {
+          label: 'PENDING ACCEPTANCE',
+          bg: '#FEF3C7',
+          text: '#B45309',
+          icon: 'time-outline' as const,
+        };
+      case 'ACCEPTED':
+        return {
+          label: 'ACCEPTED',
+          bg: '#DCFCE7',
+          text: '#15803D',
+          icon: 'checkmark-circle' as const,
+        };
+      case 'IN_TRANSIT':
+        return {
+          label: 'IN TRANSIT',
+          bg: '#DBEAFE',
+          text: '#1D4ED8',
+          icon: 'navigate' as const,
+        };
+      case 'DELIVERED':
+        return {
+          label: 'DELIVERED',
+          bg: '#E0E7FF',
+          text: '#4338CA',
+          icon: 'checkmark-done-circle' as const,
+        };
+      case 'DECLINED':
+      default:
+        return {
+          label: 'DECLINED',
+          bg: '#FEE2E2',
+          text: '#B91C1C',
+          icon: 'close-circle' as const,
+        };
+    }
+  };
+
+  const filterTabs: { key: AssignmentTabFilter; label: string; count: number }[] = [
+    { key: 'ALL', label: 'All', count: allCount },
+    { key: 'PENDING', label: 'Pending', count: pendingCount },
+    { key: 'ACCEPTED', label: 'Accepted', count: acceptedCount },
+    { key: 'DECLINED', label: 'Declined', count: declinedCount },
+  ];
 
   return (
     <Screen safeArea style={styles.container}>
@@ -73,7 +159,9 @@ export default function DriverAssignmentsInbox() {
         <View style={styles.headerTextGroup}>
           <Text style={styles.headerTitle}>Assignments</Text>
           <Text style={styles.headerSubtitle}>
-            {myAssignments.length} dispatches assigned to you
+            {myAssignments.length === 1
+              ? '1 shipment assignment recorded'
+              : `${myAssignments.length} shipment assignments recorded`}
           </Text>
         </View>
 
@@ -85,33 +173,24 @@ export default function DriverAssignmentsInbox() {
         </TouchableOpacity>
       </View>
 
-      {/* COMPACT FILTER PILLS */}
+      {/* COMPACT HORIZONTAL FILTER PILLS */}
       <View style={styles.filtersWrapper}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.filtersContainer}
         >
-          {(['PENDING', 'ACCEPTED', 'ALL'] as const).map((f) => {
-            const isSelected = activeFilter === f;
-            const count =
-              f === 'ALL'
-                ? myAssignments.length
-                : f === 'PENDING'
-                ? myAssignments.filter((s) => s.status === 'ASSIGNMENT_PENDING').length
-                : myAssignments.filter((s) => s.status === 'ACCEPTED').length;
-
-            const label = f === 'PENDING' ? 'Pending' : f === 'ACCEPTED' ? 'Accepted' : 'All';
-
+          {filterTabs.map((tab) => {
+            const isSelected = activeFilter === tab.key;
             return (
               <TouchableOpacity
-                key={f}
+                key={tab.key}
                 style={[styles.filterPill, isSelected && styles.filterPillActive]}
-                onPress={() => setActiveFilter(f)}
+                onPress={() => setActiveFilter(tab.key)}
                 activeOpacity={0.7}
               >
                 <Text style={[styles.filterPillText, isSelected && styles.filterPillTextActive]}>
-                  {label} ({count})
+                  {tab.label} ({tab.count})
                 </Text>
               </TouchableOpacity>
             );
@@ -119,6 +198,7 @@ export default function DriverAssignmentsInbox() {
         </ScrollView>
       </View>
 
+      {/* SUCCESS TOAST BANNER */}
       {successToast && (
         <View style={styles.toastBox}>
           <Ionicons name="checkmark-circle" size={18} color={colors.green} style={{ marginRight: 6 }} />
@@ -126,42 +206,68 @@ export default function DriverAssignmentsInbox() {
         </View>
       )}
 
+      {/* ASSIGNMENTS LIST */}
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
         {filteredAssignments.length === 0 ? (
           <View style={styles.emptyBox}>
-            <Ionicons name="mail-open-outline" size={48} color={colors.textSecondary} />
-            <Text style={styles.emptyTitle}>No Assignments Found</Text>
+            <View style={styles.emptyIconCircle}>
+              <Ionicons
+                name={
+                  activeFilter === 'PENDING'
+                    ? 'mail-open-outline'
+                    : activeFilter === 'ACCEPTED'
+                    ? 'checkmark-done-circle-outline'
+                    : activeFilter === 'DECLINED'
+                    ? 'close-circle-outline'
+                    : 'cube-outline'
+                }
+                size={38}
+                color={colors.textSecondary}
+              />
+            </View>
+            <Text style={styles.emptyTitle}>
+              {activeFilter === 'PENDING'
+                ? 'No pending assignments'
+                : activeFilter === 'ACCEPTED'
+                ? 'No accepted assignments'
+                : activeFilter === 'DECLINED'
+                ? 'No declined assignments'
+                : 'No assignments yet'}
+            </Text>
             <Text style={styles.emptySubtitle}>
               {activeFilter === 'PENDING'
-                ? 'You currently have no new shipments awaiting response.'
-                : 'No assignments found in this category.'}
+                ? 'New shipment assignments from your transport office will appear here.'
+                : activeFilter === 'ACCEPTED'
+                ? 'Accepted shipments ready for pickup or transit will appear here.'
+                : activeFilter === 'DECLINED'
+                ? 'Assignments you have declined will appear here for your records.'
+                : 'No shipment dispatches have been assigned to your driver account.'}
             </Text>
           </View>
         ) : (
           filteredAssignments.map((shipment) => {
             const assignedVehicle = vehicles.find((v) => v.id === shipment.assignedVehicleId);
             const isPending = shipment.status === 'ASSIGNMENT_PENDING';
+            const isAccepted = shipment.status === 'ACCEPTED' || shipment.status === 'IN_TRANSIT';
+            const isDeclined = shipment.status === 'DECLINED';
+            const badge = getStatusBadge(shipment.status);
 
             return (
               <View key={shipment.id} style={styles.assignmentCard}>
+                {/* CARD HEADER */}
                 <View style={styles.cardHeader}>
-                  <View style={styles.assignmentBadge}>
+                  <View style={[styles.assignmentBadge, { backgroundColor: badge.bg }]}>
                     <Ionicons
-                      name={isPending ? 'mail-unread' : 'checkmark-circle'}
-                      size={14}
-                      color={isPending ? '#B45309' : colors.green}
+                      name={badge.icon}
+                      size={13}
+                      color={badge.text}
                       style={{ marginRight: 4 }}
                     />
-                    <Text
-                      style={[
-                        styles.assignmentBadgeText,
-                        { color: isPending ? '#B45309' : colors.green },
-                      ]}
-                    >
-                      {isPending ? 'NEW SHIPMENT ASSIGNMENT' : 'ACCEPTED ASSIGNMENT'}
+                    <Text style={[styles.assignmentBadgeText, { color: badge.text }]}>
+                      {badge.label}
                     </Text>
                   </View>
 
@@ -175,7 +281,9 @@ export default function DriverAssignmentsInbox() {
                       <View style={styles.dotOrigin} />
                       <Text style={styles.cityName}>{shipment.origin}</Text>
                     </View>
-                    <Text style={styles.addressText} numberOfLines={1}>{shipment.originAddress}</Text>
+                    <Text style={styles.addressText} numberOfLines={1}>
+                      {shipment.originAddress}
+                    </Text>
                   </View>
 
                   <View style={styles.routeArrow}>
@@ -188,41 +296,68 @@ export default function DriverAssignmentsInbox() {
                       <View style={styles.dotDest} />
                       <Text style={styles.cityName}>{shipment.destination}</Text>
                     </View>
-                    <Text style={styles.addressText} numberOfLines={1}>{shipment.destinationAddress}</Text>
+                    <Text style={styles.addressText} numberOfLines={1}>
+                      {shipment.destinationAddress}
+                    </Text>
                   </View>
                 </View>
 
-                {/* MANIFEST SPECS */}
+                {/* MANIFEST SPECIFICATIONS */}
                 <View style={styles.specsBox}>
                   <View style={styles.specRow}>
                     <Text style={styles.specLabel}>Cargo Description:</Text>
-                    <Text style={styles.specValue}>{shipment.cargoType}</Text>
+                    <Text style={styles.specValue} numberOfLines={1}>
+                      {shipment.cargoType}
+                    </Text>
                   </View>
 
                   <View style={styles.specRow}>
                     <Text style={styles.specLabel}>Cargo Weight:</Text>
-                    <Text style={styles.specValue}>{shipment.cargoWeightKg.toLocaleString()} KG</Text>
+                    <Text style={styles.specValue}>
+                      {shipment.cargoWeightKg.toLocaleString()} KG
+                    </Text>
                   </View>
 
                   <View style={styles.specRow}>
                     <Text style={styles.specLabel}>Assigned Vehicle Asset:</Text>
                     <Text style={[styles.specValue, { fontWeight: 'bold', color: colors.navy }]}>
-                      {assignedVehicle ? `${assignedVehicle.vehicleNumber} (${assignedVehicle.vehicleType})` : 'To be assigned'}
+                      {assignedVehicle
+                        ? `${assignedVehicle.vehicleNumber} (${assignedVehicle.vehicleType})`
+                        : shipment.assignedVehicleId
+                        ? shipment.assignedVehicleId
+                        : 'To be assigned'}
                     </Text>
                   </View>
 
                   <View style={styles.specRow}>
                     <Text style={styles.specLabel}>Pickup / Delivery Time:</Text>
-                    <Text style={styles.specValue}>{shipment.pickupTime} • ETA: {shipment.expectedDelivery}</Text>
+                    <Text style={styles.specValue}>
+                      {shipment.pickupTime} • ETA: {shipment.expectedDelivery}
+                    </Text>
                   </View>
+
+                  {isDeclined && shipment.declineReason && (
+                    <View style={[styles.specRow, styles.declineReasonRow]}>
+                      <Text style={[styles.specLabel, { color: '#B91C1C', fontWeight: '600' }]}>
+                        Decline Reason:
+                      </Text>
+                      <Text style={[styles.specValue, { color: '#B91C1C' }]}>
+                        {shipment.declineReason}
+                      </Text>
+                    </View>
+                  )}
                 </View>
 
-                {/* ACCEPT / DECLINE BUTTONS */}
-                {isPending ? (
+                {/* ACTION BUTTONS */}
+                {isPending && (
                   <View style={styles.buttonRow}>
                     <TouchableOpacity
                       style={styles.declineBtn}
-                      onPress={() => setDeclineTargetId(shipment.id)}
+                      onPress={() => {
+                        setSelectedDeclineReason(DRIVER_DECLINE_REASONS[0]);
+                        setDeclineTargetId(shipment.id);
+                      }}
+                      activeOpacity={0.7}
                     >
                       <Ionicons name="close" size={16} color="#DC2626" style={{ marginRight: 4 }} />
                       <Text style={styles.declineBtnText}>Decline</Text>
@@ -231,18 +366,31 @@ export default function DriverAssignmentsInbox() {
                     <TouchableOpacity
                       style={styles.acceptBtn}
                       onPress={() => handleAccept(shipment.id)}
+                      activeOpacity={0.8}
                     >
                       <Ionicons name="checkmark" size={16} color="#FFFFFF" style={{ marginRight: 4 }} />
                       <Text style={styles.acceptBtnText}>Accept Assignment</Text>
                     </TouchableOpacity>
                   </View>
-                ) : (
+                )}
+
+                {isAccepted && (
                   <TouchableOpacity
                     style={styles.viewTripBtn}
                     onPress={() => router.push('/office-driver/trips/current' as any)}
+                    activeOpacity={0.8}
                   >
                     <Text style={styles.viewTripBtnText}>Open Live Trip Tracker →</Text>
                   </TouchableOpacity>
+                )}
+
+                {isDeclined && (
+                  <View style={styles.declinedNoticeBox}>
+                    <Ionicons name="information-circle-outline" size={14} color="#B91C1C" style={{ marginRight: 4 }} />
+                    <Text style={styles.declinedNoticeText}>
+                      Assignment declined. Transport Office notified for re-dispatch.
+                    </Text>
+                  </View>
                 )}
               </View>
             );
@@ -250,7 +398,7 @@ export default function DriverAssignmentsInbox() {
         )}
       </ScrollView>
 
-      {/* DECLINE REASON MODAL */}
+      {/* DECLINE CONFIRMATION & REASON MODAL */}
       <Modal
         visible={!!declineTargetId}
         transparent
@@ -263,9 +411,9 @@ export default function DriverAssignmentsInbox() {
               <Ionicons name="alert-circle" size={28} color="#DC2626" />
             </View>
 
-            <Text style={styles.modalTitle}>Decline Shipment Assignment</Text>
+            <Text style={styles.modalTitle}>Decline Assignment?</Text>
             <Text style={styles.modalSubtitle}>
-              Please select a reason so your Transport Office dispatch can assign an alternate driver.
+              Are you sure you want to decline this shipment? Please select a reason so your Transport Office dispatch can assign an alternate driver.
             </Text>
 
             <View style={styles.reasonsList}>
@@ -276,6 +424,7 @@ export default function DriverAssignmentsInbox() {
                     key={reason}
                     style={[styles.reasonOption, isSelected && styles.reasonOptionSelected]}
                     onPress={() => setSelectedDeclineReason(reason)}
+                    activeOpacity={0.7}
                   >
                     <View style={[styles.radio, isSelected && styles.radioSelected]}>
                       {isSelected && <Ionicons name="checkmark" size={12} color="#FFFFFF" />}
@@ -292,13 +441,15 @@ export default function DriverAssignmentsInbox() {
               <TouchableOpacity
                 style={styles.cancelBtn}
                 onPress={() => setDeclineTargetId(null)}
+                activeOpacity={0.7}
               >
-                <Text style={styles.cancelBtnText}>Back</Text>
+                <Text style={styles.cancelBtnText}>Cancel</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.confirmDeclineBtn}
                 onPress={handleDeclineSubmit}
+                activeOpacity={0.8}
               >
                 <Text style={styles.confirmDeclineBtnText}>Confirm Decline</Text>
               </TouchableOpacity>
@@ -387,6 +538,8 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.lg,
     borderRadius: radius.md,
     marginBottom: spacing.xs,
+    borderWidth: 1,
+    borderColor: '#86EFAC',
   },
   toastText: {
     fontSize: 12,
@@ -403,8 +556,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: radius.lg,
     padding: spacing.md,
-    borderWidth: 1.5,
-    borderColor: '#BFDBFE',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -415,14 +573,14 @@ const styles = StyleSheet.create({
   assignmentBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEF3C7',
     paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingVertical: 4,
     borderRadius: radius.xs,
   },
   assignmentBadgeText: {
-    fontSize: 9,
-    fontWeight: 'bold',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
   shipmentId: {
     fontSize: 14,
@@ -437,6 +595,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     padding: spacing.sm,
     marginVertical: spacing.xs,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
   },
   routeCol: {
     flex: 1,
@@ -500,6 +660,12 @@ const styles = StyleSheet.create({
     maxWidth: '60%',
     textAlign: 'right',
   },
+  declineReasonRow: {
+    backgroundColor: '#FEF2F2',
+    padding: 6,
+    borderRadius: radius.xs,
+    marginTop: 4,
+  },
   buttonRow: {
     flexDirection: 'row',
     gap: spacing.sm,
@@ -547,6 +713,48 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: 'bold',
+  },
+  declinedNoticeBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    padding: 8,
+    borderRadius: radius.sm,
+    marginTop: spacing.xs,
+  },
+  declinedNoticeText: {
+    fontSize: 11,
+    color: '#B91C1C',
+    flex: 1,
+  },
+  emptyBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xxl,
+    paddingHorizontal: spacing.lg,
+  },
+  emptyIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.sm,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: colors.navy,
+    marginTop: spacing.xs,
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 4,
+    lineHeight: 18,
   },
   modalBackdrop: {
     flex: 1,
@@ -655,22 +863,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
     color: '#FFFFFF',
-  },
-  emptyBox: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.xxl,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: colors.navy,
-    marginTop: spacing.md,
-  },
-  emptySubtitle: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: 4,
   },
 });

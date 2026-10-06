@@ -27,10 +27,18 @@ export default function DriverSettingsScreen() {
     router.replace('/auth/login?role=Driver' as any);
   };
 
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/office-driver/profile' as any);
+    }
+  };
+
   return (
     <Screen safeArea style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={colors.navy} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Driver App Settings</Text>
@@ -88,7 +96,7 @@ export default function DriverSettingsScreen() {
 
           <TouchableOpacity
             style={styles.linkRow}
-            onPress={() => router.push('/office-driver/first-login' as any)}
+            onPress={() => router.push('/office-driver/change-password' as any)}
           >
             <Text style={styles.linkTitle}>Change Permanent Driver Password</Text>
             <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
