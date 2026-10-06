@@ -15,6 +15,7 @@ import { typography } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
 import { useTransportOffice } from '@/context/TransportOfficeContext';
+import { ShipmentTimeline } from '@/components/ui/ShipmentTimeline';
 
 export default function TransportOfficeShipmentDetails() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -194,56 +195,13 @@ export default function TransportOfficeShipmentDetails() {
         {/* OPERATIONAL TIMELINE */}
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Operational Timeline</Text>
-
-          <View style={styles.timelineContainer}>
-            {shipment.timeline.map((event, idx) => {
-              const isLast = idx === shipment.timeline.length - 1;
-
-              return (
-                <View key={idx} style={styles.timelineRow}>
-                  <View style={styles.timelineLeftCol}>
-                    <View
-                      style={[
-                        styles.timelineDot,
-                        event.completed && styles.timelineDotCompleted,
-                      ]}
-                    >
-                      {event.completed ? (
-                        <Ionicons name="checkmark" size={10} color="#FFFFFF" />
-                      ) : (
-                        <View style={styles.timelineInnerDot} />
-                      )}
-                    </View>
-                    {!isLast && (
-                      <View
-                        style={[
-                          styles.timelineVerticalLine,
-                          event.completed && styles.timelineVerticalLineCompleted,
-                        ]}
-                      />
-                    )}
-                  </View>
-
-                  <View style={styles.timelineRightCol}>
-                    <View style={styles.timelineTitleRow}>
-                      <Text
-                        style={[
-                          styles.timelineEventTitle,
-                          event.completed && styles.timelineEventTitleCompleted,
-                        ]}
-                      >
-                        {event.title}
-                      </Text>
-                      <Text style={styles.timelineEventTime}>{event.time}</Text>
-                    </View>
-                    {event.description && (
-                      <Text style={styles.timelineEventDesc}>{event.description}</Text>
-                    )}
-                  </View>
-                </View>
-              );
-            })}
-          </View>
+          <ShipmentTimeline
+            status={shipment.status}
+            assignedDriverName={assignedDriver?.name}
+            assignedVehicleNumber={assignedVehicle?.vehicleNumber}
+            createdAt={shipment.createdAt}
+            expectedDelivery={shipment.expectedDelivery}
+          />
         </View>
 
         {shipment.status === 'PENDING_ASSIGNMENT' && (

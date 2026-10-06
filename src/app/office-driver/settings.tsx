@@ -15,7 +15,10 @@ import { typography } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
 
+import { useTransportOffice } from '@/context/TransportOfficeContext';
+
 export default function DriverSettingsScreen() {
+  const { office } = useTransportOffice();
   const [loudAlerts, setLoudAlerts] = useState(true);
   const [vibrateOnDispatch, setVibrateOnDispatch] = useState(true);
   const [highwayNightMode, setHighwayNightMode] = useState(false);
@@ -108,7 +111,7 @@ export default function DriverSettingsScreen() {
 
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Affiliated Transport Office:</Text>
-            <Text style={styles.infoVal}>Apex Freight Solutions</Text>
+            <Text style={styles.infoVal}>{office.name}</Text>
           </View>
 
           <TouchableOpacity style={styles.linkRow}>

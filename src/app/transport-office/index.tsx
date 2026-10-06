@@ -11,7 +11,6 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/components/ui/Screen';
 import { colors } from '@/theme/colors';
-import { typography } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
 import { brand } from '@/constants/brand';
@@ -27,37 +26,43 @@ export default function TransportOfficeDashboard() {
     officeNotifications,
   } = useTransportOffice();
 
-  const activeShipmentsCount = shipments.filter(
+  const activeShipments = shipments.filter(
     (s) => s.status === 'IN_TRANSIT' || s.status === 'ACCEPTED'
-  ).length;
-  const availableDriversCount = drivers.filter((d) => d.availability === 'AVAILABLE').length;
-  const driversOnTripCount = drivers.filter((d) => d.availability === 'BUSY').length;
-  const availableVehiclesCount = vehicles.filter((v) => v.status === 'AVAILABLE').length;
-  const pendingAssignmentsCount = shipments.filter(
+  );
+
+  const pendingShipments = shipments.filter(
     (s) => s.status === 'PENDING_ASSIGNMENT' || s.status === 'ASSIGNMENT_PENDING'
-  ).length;
+  );
+
+  const declinedShipments = shipments.filter((s) => !!s.declineReason && s.status === 'PENDING_ASSIGNMENT');
+
+  const availableDriversCount = drivers.filter((d) => d.availability === 'AVAILABLE').length;
+
   const activeBreakdowns = breakdowns.filter(
     (b) => b.status !== 'RESOLVED' && b.status !== 'REPAIRED'
   );
 
   const unreadNotifCount = officeNotifications.filter((n) => !n.read).length;
 
-  const getStatusBadge = (status: string) => {
+  const getShipmentStatusBadge = (status: string) => {
     switch (status) {
       case 'IN_TRANSIT':
-        return { label: 'IN TRANSIT', bg: '#DBEAFE', text: '#1D4ED8', dot: '#2563EB' };
+        return { label: 'In Transit', bg: '#DBEAFE', text: '#1D4ED8', dot: '#2563EB' };
       case 'ACCEPTED':
-        return { label: 'ACCEPTED', bg: '#DCFCE7', text: '#15803D', dot: '#22C55E' };
+        return { label: 'Driver Accepted', bg: '#DCFCE7', text: '#15803D', dot: '#22C55E' };
       case 'ASSIGNMENT_PENDING':
-        return { label: 'AWAITING ACCEPTANCE', bg: '#FEF3C7', text: '#B45309', dot: '#F59E0B' };
+        return { label: 'Awaiting Acceptance', bg: '#FEF3C7', text: '#B45309', dot: '#F59E0B' };
       case 'PENDING_ASSIGNMENT':
-        return { label: 'UNASSIGNED', bg: '#F1F5F9', text: '#475569', dot: '#64748B' };
-      case 'DELIVERED':
-        return { label: 'DELIVERED', bg: '#E0E7FF', text: '#4338CA', dot: '#6366F1' };
+        return { label: 'Unassigned', bg: '#F1F5F9', text: '#475569', dot: '#64748B' };
       default:
         return { label: status, bg: '#F1F5F9', text: '#475569', dot: '#64748B' };
     }
   };
+
+  const hasNeedsAttention =
+    activeBreakdowns.length > 0 ||
+    pendingShipments.length > 0 ||
+    declinedShipments.length > 0;
 
   return (
     <Screen safeArea style={styles.container}>
@@ -65,11 +70,11 @@ export default function TransportOfficeDashboard() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* TOP HEADER */}
+        {/* HEADER */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <Image source={brand.logo} style={styles.logo} contentFit="contain" />
-            <Text style={styles.officeNameText}>{office.name}</Text>
+            <Text style={styles.officeNameText} numberOfLines={1}>{office.name}</Text>
           </View>
 
           <View style={styles.headerRight}>
@@ -77,7 +82,7 @@ export default function TransportOfficeDashboard() {
               style={styles.iconButton}
               onPress={() => router.push('/transport-office/notifications' as any)}
             >
-              <Ionicons name="notifications-outline" size={22} color={colors.navy} />
+              <Ionicons name="notifications-outline" size={20} color={colors.navy} />
               {unreadNotifCount > 0 && (
                 <View style={styles.badgeCount}>
                   <Text style={styles.badgeCountText}>{unreadNotifCount}</Text>
@@ -89,102 +94,64 @@ export default function TransportOfficeDashboard() {
               style={styles.avatarButton}
               onPress={() => router.push('/transport-office/profile' as any)}
             >
-              <Ionicons name="business" size={20} color={colors.navy} />
+              <Ionicons name="business-outline" size={18} color={colors.navy} />
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* WELCOME SECTION */}
+        {/* GREETING */}
         <View style={styles.welcomeSection}>
-          <View>
-            <Text style={styles.welcomeGreeting}>Good Morning,</Text>
-            <Text style={styles.welcomeName}>{office.managerName || 'Fleet Manager'}</Text>
-            <Text style={styles.welcomeSub}>Fleet Telematics & Dispatch Operations Hub</Text>
-          </View>
-          <View style={styles.liveTag}>
-            <View style={styles.liveDot} />
-            <Text style={styles.liveText}>OPERATIONAL</Text>
-          </View>
+          <Text style={styles.welcomeGreeting}>Good Morning,</Text>
+          <Text style={styles.welcomeName}>{office.managerName || office.name}</Text>
         </View>
 
-        {/* PROMINENT BREAKDOWN ALERT BANNER */}
-        {activeBreakdowns.length > 0 && (
-          <TouchableOpacity
-            style={styles.breakdownAlertCard}
-            activeOpacity={0.9}
-            onPress={() =>
-              router.push(`/transport-office/breakdowns/${activeBreakdowns[0].id}` as any)
-            }
-          >
-            <View style={styles.alertHeaderRow}>
-              <View style={styles.alertBadge}>
-                <Ionicons name="warning" size={14} color="#B91C1C" style={{ marginRight: 4 }} />
-                <Text style={styles.alertBadgeText}>ACTIVE SOS BREAKDOWN</Text>
-              </View>
-              <Text style={styles.alertTime}>{activeBreakdowns[0].reportedAt}</Text>
-            </View>
-
-            <Text style={styles.alertTitle}>
-              {activeBreakdowns[0].issueType} • {activeBreakdowns[0].vehicleNumber}
-            </Text>
-            <Text style={styles.alertDesc}>
-              Driver: {activeBreakdowns[0].driverName} • Location: {activeBreakdowns[0].location}
-            </Text>
-
-            <View style={styles.alertActionRow}>
-              <Text style={styles.alertActionText}>Coordinate Mechanic Assistance →</Text>
-            </View>
-          </TouchableOpacity>
-        )}
-
-        {/* 6 KEY METRICS GRID */}
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Fleet Overview</Text>
-          <Text style={styles.sectionSubTitle}>Real-time stats</Text>
-        </View>
-
+        {/* KEY STATS (2x2 Grid, Max 4) */}
         <View style={styles.statsGrid}>
-          <View style={styles.statCard}>
+          <TouchableOpacity
+            style={styles.statCard}
+            activeOpacity={0.8}
+            onPress={() => router.push('/transport-office/shipments' as any)}
+          >
             <View style={[styles.statIconCircle, { backgroundColor: '#EFF6FF' }]}>
-              <Ionicons name="cube-outline" size={20} color={colors.blue} />
+              <Ionicons name="cube-outline" size={18} color={colors.blue} />
             </View>
-            <Text style={styles.statValue}>{activeShipmentsCount}</Text>
+            <Text style={styles.statValue}>{activeShipments.length}</Text>
             <Text style={styles.statLabel}>Active Shipments</Text>
-          </View>
+          </TouchableOpacity>
 
-          <View style={styles.statCard}>
+          <TouchableOpacity
+            style={styles.statCard}
+            activeOpacity={0.8}
+            onPress={() => router.push('/transport-office/shipments' as any)}
+          >
+            <View style={[styles.statIconCircle, { backgroundColor: '#FEF3C7' }]}>
+              <Ionicons name="time-outline" size={18} color={colors.orange} />
+            </View>
+            <Text style={styles.statValue}>{pendingShipments.length}</Text>
+            <Text style={styles.statLabel}>Pending Assignments</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.statCard}
+            activeOpacity={0.8}
+            onPress={() => router.push('/transport-office/drivers' as any)}
+          >
             <View style={[styles.statIconCircle, { backgroundColor: '#DCFCE7' }]}>
-              <Ionicons name="checkmark-circle-outline" size={20} color={colors.green} />
+              <Ionicons name="people-outline" size={18} color={colors.green} />
             </View>
             <Text style={styles.statValue}>{availableDriversCount}</Text>
             <Text style={styles.statLabel}>Available Drivers</Text>
-          </View>
+          </TouchableOpacity>
 
-          <View style={styles.statCard}>
-            <View style={[styles.statIconCircle, { backgroundColor: '#FEF3C7' }]}>
-              <Ionicons name="navigate-outline" size={20} color={colors.orange} />
-            </View>
-            <Text style={styles.statValue}>{driversOnTripCount}</Text>
-            <Text style={styles.statLabel}>Drivers On Trip</Text>
-          </View>
-
-          <View style={styles.statCard}>
-            <View style={[styles.statIconCircle, { backgroundColor: '#F1F5F9' }]}>
-              <Ionicons name="bus-outline" size={20} color={colors.navy} />
-            </View>
-            <Text style={styles.statValue}>{availableVehiclesCount}</Text>
-            <Text style={styles.statLabel}>Available Vehicles</Text>
-          </View>
-
-          <View style={styles.statCard}>
-            <View style={[styles.statIconCircle, { backgroundColor: '#F3E8FF' }]}>
-              <Ionicons name="time-outline" size={20} color="#7E22CE" />
-            </View>
-            <Text style={styles.statValue}>{pendingAssignmentsCount}</Text>
-            <Text style={styles.statLabel}>Pending Assignments</Text>
-          </View>
-
-          <View style={[styles.statCard, activeBreakdowns.length > 0 && styles.statCardAlert]}>
+          <TouchableOpacity
+            style={[styles.statCard, activeBreakdowns.length > 0 && styles.statCardAlert]}
+            activeOpacity={0.8}
+            onPress={() => {
+              if (activeBreakdowns.length > 0) {
+                router.push(`/transport-office/breakdowns/${activeBreakdowns[0].id}` as any);
+              }
+            }}
+          >
             <View
               style={[
                 styles.statIconCircle,
@@ -192,8 +159,8 @@ export default function TransportOfficeDashboard() {
               ]}
             >
               <Ionicons
-                name="alert-circle-outline"
-                size={20}
+                name="warning-outline"
+                size={18}
                 color={activeBreakdowns.length > 0 ? '#DC2626' : colors.textSecondary}
               />
             </View>
@@ -206,189 +173,222 @@ export default function TransportOfficeDashboard() {
               {activeBreakdowns.length}
             </Text>
             <Text style={styles.statLabel}>Active Breakdowns</Text>
-          </View>
+          </TouchableOpacity>
         </View>
 
-        {/* QUICK ACTIONS */}
+        {/* NEEDS ATTENTION */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Needs Attention</Text>
+        </View>
+
+        {!hasNeedsAttention ? (
+          <View style={styles.cleanStateCard}>
+            <View style={styles.cleanStateIcon}>
+              <Ionicons name="checkmark-circle" size={24} color={colors.green} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.cleanStateTitle}>Everything is under control</Text>
+              <Text style={styles.cleanStateSub}>
+                No critical breakdowns or unassigned delays requiring urgent action.
+              </Text>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.attentionList}>
+            {/* Active Breakdown Alert */}
+            {activeBreakdowns.slice(0, 2).map((bd) => (
+              <TouchableOpacity
+                key={bd.id}
+                style={styles.breakdownAlertCard}
+                activeOpacity={0.85}
+                onPress={() => router.push(`/transport-office/breakdowns/${bd.id}` as any)}
+              >
+                <View style={styles.alertHeaderRow}>
+                  <View style={styles.alertBadge}>
+                    <Ionicons name="warning" size={12} color="#B91C1C" style={{ marginRight: 4 }} />
+                    <Text style={styles.alertBadgeText}>ACTIVE BREAKDOWN</Text>
+                  </View>
+                  <Text style={styles.alertTime}>{bd.reportedAt}</Text>
+                </View>
+                <Text style={styles.alertTitle}>
+                  {bd.issueType} • Vehicle: {bd.vehicleNumber}
+                </Text>
+                <Text style={styles.alertDesc}>
+                  Driver: {bd.driverName} • Location: {bd.location}
+                </Text>
+                <View style={styles.alertActionRow}>
+                  <Text style={styles.alertActionText}>Coordinate Mechanic Assistance →</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+
+            {/* Driver Declined Alert */}
+            {declinedShipments.slice(0, 1).map((s) => (
+              <TouchableOpacity
+                key={s.id}
+                style={styles.declinedAlertCard}
+                activeOpacity={0.85}
+                onPress={() =>
+                  router.push({
+                    pathname: '/transport-office/shipments/assign',
+                    params: { shipmentId: s.id },
+                  } as any)
+                }
+              >
+                <View style={styles.alertHeaderRow}>
+                  <View style={[styles.alertBadge, { backgroundColor: '#FEE2E2' }]}>
+                    <Ionicons name="close-circle" size={12} color="#B91C1C" style={{ marginRight: 4 }} />
+                    <Text style={[styles.alertBadgeText, { color: '#B91C1C' }]}>DRIVER DECLINED</Text>
+                  </View>
+                  <Text style={styles.alertTime}>Shipment #{s.id}</Text>
+                </View>
+                <Text style={styles.alertTitle}>
+                  Re-assignment Required ({s.origin} → {s.destination})
+                </Text>
+                <Text style={styles.alertDesc}>
+                  Reason: {s.declineReason || 'Driver unavailable'}
+                </Text>
+                <View style={styles.alertActionRow}>
+                  <Text style={styles.alertActionText}>Re-assign Shipment Now →</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+
+            {/* Pending Assignment Alert */}
+            {pendingShipments.filter((s) => s.status === 'PENDING_ASSIGNMENT' && !s.declineReason).slice(0, 2).map((s) => (
+              <TouchableOpacity
+                key={s.id}
+                style={styles.pendingAlertCard}
+                activeOpacity={0.85}
+                onPress={() =>
+                  router.push({
+                    pathname: '/transport-office/shipments/assign',
+                    params: { shipmentId: s.id },
+                  } as any)
+                }
+              >
+                <View style={styles.alertHeaderRow}>
+                  <View style={[styles.alertBadge, { backgroundColor: '#FEF3C7' }]}>
+                    <Ionicons name="time" size={12} color="#B45309" style={{ marginRight: 4 }} />
+                    <Text style={[styles.alertBadgeText, { color: '#B45309' }]}>PENDING DISPATCH</Text>
+                  </View>
+                  <Text style={styles.alertTime}>Shipment #{s.id}</Text>
+                </View>
+                <Text style={styles.alertTitle}>
+                  {s.origin} → {s.destination} ({s.cargoWeightKg.toLocaleString()} KG)
+                </Text>
+                <Text style={styles.alertDesc}>
+                  Cargo: {s.cargoType} • Pickup: {s.pickupTime}
+                </Text>
+                <View style={styles.alertActionRow}>
+                  <Text style={[styles.alertActionText, { color: colors.blue }]}>Assign Driver & Vehicle →</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        {/* ACTIVE SHIPMENTS (2-3 items max + View All Shipments button) */}
         <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionTitle}>Active Shipments</Text>
+          <TouchableOpacity onPress={() => router.push('/transport-office/shipments' as any)}>
+            <Text style={styles.seeAllLink}>View All ({shipments.length})</Text>
+          </TouchableOpacity>
+        </View>
+
+        {activeShipments.length === 0 ? (
+          <View style={styles.emptyShipmentsCard}>
+            <Ionicons name="cube-outline" size={32} color="#64748B" />
+            <Text style={styles.emptyShipmentsTitle}>No active shipments</Text>
+            <Text style={styles.emptyShipmentsSub}>
+              No shipments are currently in transit on the road network.
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.shipmentsList}>
+            {activeShipments.slice(0, 3).map((shipment) => {
+              const driver = shipment.assignedDriverId
+                ? drivers.find((d) => d.id === shipment.assignedDriverId)
+                : null;
+              const vehicle = shipment.assignedVehicleId
+                ? vehicles.find((v) => v.id === shipment.assignedVehicleId)
+                : null;
+              const badge = getShipmentStatusBadge(shipment.status);
+
+              return (
+                <View key={shipment.id} style={styles.shipmentCard}>
+                  <View style={styles.shipmentCardHeader}>
+                    <Text style={styles.shipmentId}>#{shipment.id}</Text>
+                    <View style={[styles.statusBadge, { backgroundColor: badge.bg }]}>
+                      <View style={[styles.statusDot, { backgroundColor: badge.dot }]} />
+                      <Text style={[styles.statusBadgeText, { color: badge.text }]}>
+                        {badge.label}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.routeRow}>
+                    <Text style={styles.routeCity}>{shipment.origin}</Text>
+                    <Ionicons name="arrow-forward" size={13} color={colors.navy} style={{ marginHorizontal: 6 }} />
+                    <Text style={styles.routeCity}>{shipment.destination}</Text>
+                  </View>
+
+                  <View style={styles.driverVehicleRow}>
+                    <Ionicons name="person-outline" size={12} color="#64748B" style={{ marginRight: 4 }} />
+                    <Text style={styles.driverVehicleText}>
+                      {driver?.name || 'Driver'} • {vehicle?.vehicleNumber || 'Vehicle'}
+                    </Text>
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.viewShipmentBtn}
+                    activeOpacity={0.7}
+                    onPress={() => router.push(`/transport-office/shipments/${shipment.id}` as any)}
+                  >
+                    <Text style={styles.viewShipmentBtnText}>View Operations</Text>
+                    <Ionicons name="chevron-forward" size={13} color={colors.navy} />
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
+
+            <TouchableOpacity
+              style={styles.viewAllShipmentsBtn}
+              activeOpacity={0.8}
+              onPress={() => router.push('/transport-office/shipments' as any)}
+            >
+              <Text style={styles.viewAllShipmentsBtnText}>View All Shipments →</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* QUICK ACTIONS (+ Add Driver, + Add Vehicle) */}
+        <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
         </View>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.quickActionsContainer}
-        >
+        <View style={styles.quickActionsRow}>
           <TouchableOpacity
             style={styles.quickActionButton}
+            activeOpacity={0.85}
             onPress={() => router.push('/transport-office/drivers/add' as any)}
           >
             <View style={[styles.quickActionIcon, { backgroundColor: '#EFF6FF' }]}>
-              <Ionicons name="person-add" size={20} color={colors.navy} />
+              <Ionicons name="person-add" size={16} color={colors.blue} />
             </View>
-            <Text style={styles.quickActionLabel}>Add Driver</Text>
+            <Text style={styles.quickActionText}>+ Add Driver</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.quickActionButton}
+            activeOpacity={0.85}
             onPress={() => router.push('/transport-office/vehicles/add' as any)}
           >
             <View style={[styles.quickActionIcon, { backgroundColor: '#FEF3C7' }]}>
-              <Ionicons name="add-circle" size={20} color={colors.orange} />
+              <Ionicons name="bus" size={16} color={colors.orange} />
             </View>
-            <Text style={styles.quickActionLabel}>Add Vehicle</Text>
+            <Text style={styles.quickActionText}>+ Add Vehicle</Text>
           </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.quickActionButton}
-            onPress={() => router.push('/transport-office/shipments' as any)}
-          >
-            <View style={[styles.quickActionIcon, { backgroundColor: '#DCFCE7' }]}>
-              <Ionicons name="git-branch" size={20} color={colors.green} />
-            </View>
-            <Text style={styles.quickActionLabel}>Assign Shipment</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.quickActionButton}
-            onPress={() => router.push('/transport-office/breakdowns' as any)}
-          >
-            <View style={[styles.quickActionIcon, { backgroundColor: '#FEE2E2' }]}>
-              <Ionicons name="construct" size={20} color="#DC2626" />
-            </View>
-            <Text style={styles.quickActionLabel}>Breakdowns</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.quickActionButton}
-            onPress={() => router.push('/transport-office/history' as any)}
-          >
-            <View style={[styles.quickActionIcon, { backgroundColor: '#F1F5F9' }]}>
-              <Ionicons name="newspaper-outline" size={20} color={colors.slate} />
-            </View>
-            <Text style={styles.quickActionLabel}>Audit History</Text>
-          </TouchableOpacity>
-        </ScrollView>
-
-        {/* TODAY'S OPERATIONS / SHIPMENT CARDS */}
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Today's Shipments</Text>
-          <TouchableOpacity onPress={() => router.push('/transport-office/shipments' as any)}>
-            <Text style={styles.viewAllText}>View All ({shipments.length}) →</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.shipmentsList}>
-          {shipments.slice(0, 3).map((shipment) => {
-            const badge = getStatusBadge(shipment.status);
-            const assignedDriver = drivers.find((d) => d.id === shipment.assignedDriverId);
-            const assignedVehicle = vehicles.find((v) => v.id === shipment.assignedVehicleId);
-
-            return (
-              <TouchableOpacity
-                key={shipment.id}
-                style={styles.shipmentCard}
-                activeOpacity={0.8}
-                onPress={() => router.push(`/transport-office/shipments/${shipment.id}` as any)}
-              >
-                <View style={styles.shipmentHeader}>
-                  <View style={styles.shipmentIdRow}>
-                    <Text style={styles.shipmentIdText}>Shipment #{shipment.id}</Text>
-                    <Text style={styles.cargoWeightText}>
-                      {shipment.cargoWeightKg.toLocaleString()} KG
-                    </Text>
-                  </View>
-                  <View style={[styles.statusBadge, { backgroundColor: badge.bg }]}>
-                    <View style={[styles.statusDot, { backgroundColor: badge.dot }]} />
-                    <Text style={[styles.statusBadgeText, { color: badge.text }]}>
-                      {badge.label}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.routeBox}>
-                  <View style={styles.routePoint}>
-                    <View style={styles.originDot} />
-                    <Text style={styles.cityText}>{shipment.origin}</Text>
-                  </View>
-                  <View style={styles.routeConnector}>
-                    <Ionicons name="arrow-forward" size={14} color={colors.textSecondary} />
-                  </View>
-                  <View style={styles.routePoint}>
-                    <View style={styles.destDot} />
-                    <Text style={styles.cityText}>{shipment.destination}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.shipmentDetailsGrid}>
-                  <View style={styles.shipmentDetailItem}>
-                    <Text style={styles.detailLabel}>Assigned Driver</Text>
-                    <Text style={styles.detailValue}>
-                      {assignedDriver ? assignedDriver.name : 'Not Assigned'}
-                    </Text>
-                  </View>
-                  <View style={styles.shipmentDetailItem}>
-                    <Text style={styles.detailLabel}>Vehicle Asset</Text>
-                    <Text style={styles.detailValue}>
-                      {assignedVehicle ? assignedVehicle.vehicleNumber : 'Not Assigned'}
-                    </Text>
-                  </View>
-                </View>
-
-                {shipment.status === 'PENDING_ASSIGNMENT' && (
-                  <TouchableOpacity
-                    style={styles.assignNowBtn}
-                    onPress={() =>
-                      router.push({
-                        pathname: '/transport-office/shipments/assign',
-                        params: { shipmentId: shipment.id },
-                      } as any)
-                    }
-                  >
-                    <Ionicons name="person-add-outline" size={14} color={colors.white} style={{ marginRight: 6 }} />
-                    <Text style={styles.assignNowText}>Assign Driver & Vehicle</Text>
-                  </TouchableOpacity>
-                )}
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {/* RECENT ACTIVITY */}
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Recent Network Activity</Text>
-        </View>
-
-        <View style={styles.activityCard}>
-          <View style={styles.activityItem}>
-            <View style={[styles.activityDot, { backgroundColor: colors.green }]} />
-            <View style={styles.activityContent}>
-              <Text style={styles.activityText}>
-                <Text style={{ fontWeight: 'bold' }}>Kumar S.</Text> verified assignment for #HS1018
-              </Text>
-              <Text style={styles.activityTime}>35 mins ago</Text>
-            </View>
-          </View>
-
-          <View style={styles.activityItem}>
-            <View style={[styles.activityDot, { backgroundColor: colors.blue }]} />
-            <View style={styles.activityContent}>
-              <Text style={styles.activityText}>
-                Vehicle <Text style={{ fontWeight: 'bold' }}>TN38CD5678</Text> departed Madurai hub
-              </Text>
-              <Text style={styles.activityTime}>2 hours ago</Text>
-            </View>
-          </View>
-
-          <View style={[styles.activityItem, { borderBottomWidth: 0 }]}>
-            <View style={[styles.activityDot, { backgroundColor: colors.orange }]} />
-            <View style={styles.activityContent}>
-              <Text style={styles.activityText}>
-                <Text style={{ fontWeight: 'bold' }}>Raj Heavy Truck Works</Text> completed maintenance check
-              </Text>
-              <Text style={styles.activityTime}>Yesterday</Text>
-            </View>
-          </View>
         </View>
       </ScrollView>
     </Screen>
@@ -402,66 +402,67 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.xxl,
+    paddingTop: spacing.xs,
+    paddingBottom: 40,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.md,
+    marginBottom: spacing.xs,
   },
   headerLeft: {
-    flexDirection: 'column',
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
   logo: {
-    width: 130,
-    height: 38,
-    marginBottom: 2,
+    width: 32,
+    height: 32,
+    marginRight: spacing.xs,
   },
   officeNameText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: colors.slate,
-    letterSpacing: 0.3,
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.navy,
+    flexShrink: 1,
   },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
   iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E2E8F0',
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative',
   },
   badgeCount: {
     position: 'absolute',
     top: -2,
     right: -2,
     backgroundColor: '#DC2626',
-    borderRadius: 10,
-    minWidth: 18,
-    height: 18,
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: 3,
   },
   badgeCountText: {
     color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: 'bold',
+    fontSize: 9,
+    fontWeight: '700',
   },
   avatarButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#EFF6FF',
     borderWidth: 1,
     borderColor: '#DBEAFE',
@@ -469,227 +470,217 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   welcomeSection: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    backgroundColor: '#FFFFFF',
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
     marginBottom: spacing.md,
+    marginTop: spacing.xs,
   },
   welcomeGreeting: {
     fontSize: 12,
-    color: colors.textSecondary,
+    color: '#64748B',
     fontWeight: '500',
   },
   welcomeName: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '800',
     color: colors.navy,
-  },
-  welcomeSub: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  liveTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#DCFCE7',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: radius.pill,
-  },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.green,
-    marginRight: 4,
-  },
-  liveText: {
-    fontSize: 9,
-    fontWeight: 'bold',
-    color: colors.green,
-  },
-  breakdownAlertCard: {
-    backgroundColor: '#FEF2F2',
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    borderWidth: 1.5,
-    borderColor: '#FCA5A5',
-    marginBottom: spacing.md,
-  },
-  alertHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.xs,
-  },
-  alertBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FEE2E2',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: radius.xs,
-  },
-  alertBadgeText: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: '#991B1B',
-  },
-  alertTime: {
-    fontSize: 11,
-    color: '#991B1B',
-  },
-  alertTitle: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#7F1D1D',
-    marginTop: 2,
-  },
-  alertDesc: {
-    fontSize: 12,
-    color: '#991B1B',
-    marginTop: 2,
-  },
-  alertActionRow: {
-    marginTop: spacing.sm,
-    paddingTop: spacing.xs,
-    borderTopWidth: 1,
-    borderTopColor: '#FECACA',
-  },
-  alertActionText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#B91C1C',
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: colors.navy,
-  },
-  sectionSubTitle: {
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  viewAllText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: colors.blue,
   },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
+    marginBottom: spacing.lg,
   },
   statCard: {
-    flex: 1,
-    minWidth: '30%',
+    width: '48%',
     backgroundColor: '#FFFFFF',
     borderRadius: radius.md,
     padding: spacing.md,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    alignItems: 'flex-start',
   },
   statCardAlert: {
     borderColor: '#FCA5A5',
-    backgroundColor: '#FFF5F5',
+    backgroundColor: '#FEF2F2',
   },
   statIconCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.xs,
+    marginBottom: 6,
   },
   statValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 20,
+    fontWeight: '800',
     color: colors.navy,
   },
   statLabel: {
-    fontSize: 10,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  quickActionsContainer: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  quickActionButton: {
-    alignItems: 'center',
-    width: 78,
-  },
-  quickActionIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginBottom: 6,
-  },
-  quickActionLabel: {
     fontSize: 11,
-    fontWeight: '600',
+    color: '#64748B',
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  sectionHeader: {
+    marginBottom: spacing.xs,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+    marginTop: spacing.md,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
     color: colors.navy,
-    textAlign: 'center',
   },
-  shipmentsList: {
-    gap: spacing.md,
+  seeAllLink: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.blue,
   },
-  shipmentCard: {
+  cleanStateCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0FDF4',
+    borderRadius: radius.md,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+    marginBottom: spacing.sm,
+  },
+  cleanStateIcon: {
+    marginRight: spacing.sm,
+  },
+  cleanStateTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#15803D',
+  },
+  cleanStateSub: {
+    fontSize: 11,
+    color: '#166534',
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  attentionList: {
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  breakdownAlertCard: {
+    backgroundColor: '#FEF2F2',
+    borderRadius: radius.md,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+  },
+  declinedAlertCard: {
+    backgroundColor: '#FFF1F2',
+    borderRadius: radius.md,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: '#FECDD3',
+  },
+  pendingAlertCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: radius.lg,
+    borderRadius: radius.md,
     padding: spacing.md,
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
-  shipmentHeader: {
+  alertHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.sm,
+    marginBottom: 4,
   },
-  shipmentIdRow: {
+  alertBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-  },
-  shipmentIdText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: colors.navy,
-  },
-  cargoWeightText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.slate,
-    backgroundColor: '#F1F5F9',
-    paddingHorizontal: 6,
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 7,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: radius.pill,
+  },
+  alertBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#B91C1C',
+  },
+  alertTime: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  alertTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.navy,
+    marginBottom: 2,
+  },
+  alertDesc: {
+    fontSize: 11,
+    color: '#475569',
+    marginBottom: 4,
+  },
+  alertActionRow: {
+    marginTop: 2,
+  },
+  alertActionText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#DC2626',
+  },
+  emptyShipmentsCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: radius.md,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.sm,
+  },
+  emptyShipmentsTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.navy,
+    marginTop: 4,
+  },
+  emptyShipmentsSub: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  shipmentsList: {
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  shipmentCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: radius.md,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  shipmentCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  shipmentId: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.navy,
   },
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
     borderRadius: radius.pill,
   },
   statusDot: {
@@ -700,110 +691,85 @@ const styles = StyleSheet.create({
   },
   statusBadgeText: {
     fontSize: 10,
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
-  routeBox: {
+  routeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: radius.md,
-    padding: spacing.sm,
-    marginBottom: spacing.sm,
+    marginBottom: 4,
   },
-  routePoint: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  originDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.blue,
-    marginRight: 6,
-  },
-  destDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.green,
-    marginRight: 6,
-  },
-  cityText: {
+  routeCity: {
     fontSize: 13,
-    fontWeight: 'bold',
-    color: colors.navy,
-  },
-  routeConnector: {
-    flex: 1,
-    alignItems: 'center',
-    paddingHorizontal: spacing.sm,
-  },
-  shipmentDetailsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: spacing.xs,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-  },
-  shipmentDetailItem: {
-    flex: 1,
-  },
-  detailLabel: {
-    fontSize: 10,
-    color: colors.textSecondary,
-    marginBottom: 2,
-  },
-  detailValue: {
-    fontSize: 12,
     fontWeight: '600',
     color: colors.navy,
   },
-  assignNowBtn: {
+  driverVehicleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.navy,
-    borderRadius: radius.md,
-    paddingVertical: spacing.sm,
-    marginTop: spacing.md,
+    marginBottom: spacing.xs,
   },
-  assignNowText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: 'bold',
+  driverVehicleText: {
+    fontSize: 11,
+    color: '#64748B',
   },
-  activityCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: radius.lg,
-    padding: spacing.md,
+  viewShipmentBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F8FAFC',
+    borderRadius: radius.sm,
+    paddingVertical: 6,
+    paddingHorizontal: spacing.sm,
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
-  activityItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  activityDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginTop: 5,
-    marginRight: spacing.sm,
-  },
-  activityContent: {
-    flex: 1,
-  },
-  activityText: {
-    fontSize: 12,
+  viewShipmentBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
     color: colors.navy,
-    lineHeight: 18,
   },
-  activityTime: {
-    fontSize: 10,
-    color: colors.textSecondary,
-    marginTop: 2,
+  viewAllShipmentsBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    backgroundColor: '#EFF6FF',
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+  },
+  viewAllShipmentsBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.blue,
+  },
+  quickActionsRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  quickActionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: radius.md,
+    paddingVertical: 12,
+    paddingHorizontal: spacing.md,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  quickActionIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+  },
+  quickActionText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.navy,
   },
 });

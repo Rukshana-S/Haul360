@@ -20,7 +20,7 @@ import { radius } from '@/theme/radius';
 import { useTransportOffice } from '@/context/TransportOfficeContext';
 
 export default function DriverFirstLoginScreen() {
-  const { currentDriverUser, updateDriverPassword } = useTransportOffice();
+  const { currentDriverUser, updateDriverPassword, office } = useTransportOffice();
 
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -82,7 +82,7 @@ export default function DriverFirstLoginScreen() {
             <View style={styles.accountBox}>
               <Text style={styles.accountLabel}>DRIVER ACCOUNT</Text>
               <Text style={styles.accountValue}>{currentDriverUser?.id || 'H360-D-1045'}</Text>
-              <Text style={styles.accountSub}>Transport Hub: Apex Freight Solutions</Text>
+              <Text style={styles.accountSub}>Transport Hub: {office.name}</Text>
             </View>
 
             <View style={styles.passwordWrapper}>

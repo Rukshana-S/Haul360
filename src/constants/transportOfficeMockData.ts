@@ -193,10 +193,10 @@ export interface HistoryItem {
 
 export const initialTransportOffice: TransportOffice = {
   id: 'OFFICE-001',
-  name: 'Apex Freight Solutions',
+  name: 'Haul360 Logistics Hub',
   managerName: 'Ramesh Chandran',
   phone: '9840123456',
-  email: 'dispatch@apexlogistics.in',
+  email: 'dispatch@haul360.in',
   address: '124, Ring Road Industrial Corridor',
   city: 'Chennai',
   state: 'Tamil Nadu',
@@ -412,7 +412,7 @@ export const initialOfficeShipments: OfficeShipment[] = [
     assignedVehicleId: null,
     createdAt: '05 Oct 2026, 08:30 AM',
     timeline: [
-      { title: 'Shipment Created', time: '08:30 AM', completed: true, description: 'Booked by Apex Enterprise Logistics' },
+      { title: 'Shipment Created', time: '08:30 AM', completed: true, description: 'Booked by Haul360 Enterprise Logistics' },
       { title: 'Assigned Driver & Vehicle', time: '--', completed: false, description: 'Pending fleet assignment' },
       { title: 'Driver Acceptance', time: '--', completed: false, description: 'Pending driver confirmation' },
       { title: 'Trip Started', time: '--', completed: false, description: 'Pickup & transit' },

@@ -184,7 +184,7 @@ export default function TransportOfficeRegistrationScreen() {
 
             <Input
               label="Transport Office / Company Name"
-              placeholder="e.g. Apex Freight Solutions"
+              placeholder="e.g. Haul360 Southern Logistics"
               value={officeName}
               onChangeText={setOfficeName}
               error={errors.officeName}

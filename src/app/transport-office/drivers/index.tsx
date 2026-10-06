@@ -56,8 +56,9 @@ export default function TransportOfficeDriversList() {
 
   return (
     <Screen safeArea style={styles.container}>
+      {/* HEADER */}
       <View style={styles.header}>
-        <View>
+        <View style={styles.headerTextGroup}>
           <Text style={styles.headerTitle}>Driver Fleet</Text>
           <Text style={styles.headerSubtitle}>
             {drivers.length} registered office drivers
@@ -66,16 +67,17 @@ export default function TransportOfficeDriversList() {
 
         <TouchableOpacity
           style={styles.addDriverButton}
+          activeOpacity={0.85}
           onPress={() => router.push('/transport-office/drivers/add' as any)}
         >
-          <Ionicons name="person-add" size={16} color={colors.white} style={{ marginRight: 6 }} />
-          <Text style={styles.addDriverButtonText}>Add Driver</Text>
+          <Ionicons name="person-add" size={15} color="#FFFFFF" style={{ marginRight: 5 }} />
+          <Text style={styles.addDriverButtonText}>+ Add Driver</Text>
         </TouchableOpacity>
       </View>
 
       {/* SEARCH BAR */}
       <View style={styles.searchWrapper}>
-        <Ionicons name="search-outline" size={18} color={colors.textSecondary} style={{ marginRight: 8 }} />
+        <Ionicons name="search-outline" size={18} color="#64748B" style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
           placeholder="Search by name, Driver ID or mobile..."
@@ -84,55 +86,55 @@ export default function TransportOfficeDriversList() {
           onChangeText={setSearchQuery}
         />
         {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
+          <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Ionicons name="close-circle" size={18} color="#94A3B8" />
           </TouchableOpacity>
         )}
       </View>
 
-      {/* FILTER TABS */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filtersContainer}
-      >
-        {(['ALL', 'AVAILABLE', 'ASSIGNED', 'BUSY', 'OFFLINE'] as DriverFilter[]).map((filter) => {
-          const isSelected = activeFilter === filter;
-          const count =
-            filter === 'ALL'
-              ? drivers.length
-              : filter === 'AVAILABLE'
-              ? drivers.filter((d) => d.availability === 'AVAILABLE').length
-              : filter === 'ASSIGNED'
-              ? drivers.filter((d) => d.availability === 'ASSIGNMENT_PENDING').length
-              : filter === 'BUSY'
-              ? drivers.filter((d) => d.availability === 'BUSY').length
-              : drivers.filter((d) => d.availability === 'OFFLINE').length;
+      {/* COMPACT FILTER PILLS */}
+      <View style={styles.filtersWrapper}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filtersContainer}
+        >
+          {(
+            [
+              { key: 'ALL', label: 'All' },
+              { key: 'AVAILABLE', label: 'Available' },
+              { key: 'ASSIGNED', label: 'Assigned' },
+              { key: 'BUSY', label: 'On Trip' },
+              { key: 'OFFLINE', label: 'Offline' },
+            ] as const
+          ).map((item) => {
+            const isSelected = activeFilter === item.key;
+            const count =
+              item.key === 'ALL'
+                ? drivers.length
+                : item.key === 'AVAILABLE'
+                ? drivers.filter((d) => d.availability === 'AVAILABLE').length
+                : item.key === 'ASSIGNED'
+                ? drivers.filter((d) => d.availability === 'ASSIGNMENT_PENDING').length
+                : item.key === 'BUSY'
+                ? drivers.filter((d) => d.availability === 'BUSY').length
+                : drivers.filter((d) => d.availability === 'OFFLINE').length;
 
-          const label =
-            filter === 'ALL'
-              ? 'All'
-              : filter === 'AVAILABLE'
-              ? 'Available'
-              : filter === 'ASSIGNED'
-              ? 'Assigned'
-              : filter === 'BUSY'
-              ? 'On Trip'
-              : 'Offline';
-
-          return (
-            <TouchableOpacity
-              key={filter}
-              style={[styles.filterTab, isSelected && styles.filterTabActive]}
-              onPress={() => setActiveFilter(filter)}
-            >
-              <Text style={[styles.filterTabText, isSelected && styles.filterTabTextActive]}>
-                {label} ({count})
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+            return (
+              <TouchableOpacity
+                key={item.key}
+                style={[styles.filterPill, isSelected && styles.filterPillActive]}
+                onPress={() => setActiveFilter(item.key)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.filterPillText, isSelected && styles.filterPillTextActive]}>
+                  {item.label} ({count})
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
 
       {/* DRIVERS LIST */}
       <ScrollView
@@ -244,29 +246,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
-    marginBottom: spacing.sm,
+    paddingBottom: spacing.xs,
+  },
+  headerTextGroup: {
+    flex: 1,
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: '800',
     color: colors.navy,
   },
   headerSubtitle: {
     fontSize: 12,
-    color: colors.textSecondary,
+    color: '#64748B',
+    marginTop: 1,
   },
   addDriverButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.navy,
+    backgroundColor: '#0F172A',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: radius.md,
   },
   addDriverButtonText: {
-    color: colors.white,
+    color: '#FFFFFF',
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
   searchWrapper: {
     flexDirection: 'row',
@@ -276,9 +282,12 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
     borderRadius: radius.md,
     marginHorizontal: spacing.lg,
-    marginVertical: spacing.sm,
+    marginVertical: spacing.xs,
     paddingHorizontal: spacing.md,
     height: 44,
+  },
+  searchIcon: {
+    marginRight: 8,
   },
   searchInput: {
     flex: 1,
@@ -286,36 +295,42 @@ const styles = StyleSheet.create({
     color: colors.navy,
     paddingVertical: 0,
   },
+  filtersWrapper: {
+    paddingVertical: 6,
+  },
   filtersContainer: {
     paddingHorizontal: spacing.lg,
-    gap: spacing.xs,
-    paddingBottom: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
-  filterTab: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: radius.pill,
+  filterPill: {
+    height: 36,
+    paddingHorizontal: 14,
+    borderRadius: 18,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    marginRight: spacing.xs,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  filterTabActive: {
-    backgroundColor: colors.navy,
-    borderColor: colors.navy,
+  filterPillActive: {
+    backgroundColor: '#0F172A',
+    borderColor: '#0F172A',
   },
-  filterTabText: {
+  filterPillText: {
     fontSize: 12,
     fontWeight: '600',
-    color: colors.textSecondary,
+    color: '#475569',
   },
-  filterTabTextActive: {
+  filterPillTextActive: {
     color: '#FFFFFF',
+    fontWeight: '700',
   },
   listContent: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.xs,
-    paddingBottom: spacing.xxl,
+    paddingBottom: 40,
     gap: spacing.md,
   },
   driverCard: {

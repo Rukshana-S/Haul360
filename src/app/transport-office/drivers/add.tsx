@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,19 +8,18 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/components/ui/Screen';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { colors } from '@/theme/colors';
-import { typography } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
 import { useTransportOffice } from '@/context/TransportOfficeContext';
 
 export default function AddDriverScreen() {
-  const { addDriver } = useTransportOffice();
+  const { addDriver, drivers } = useTransportOffice();
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
@@ -34,7 +33,6 @@ export default function AddDriverScreen() {
   // Step 2: Document info
   const [licenseNumber, setLicenseNumber] = useState('');
   const [licenseExpiry, setLicenseExpiry] = useState('2029-12-31');
-  const [isDocUploaded, setIsDocUploaded] = useState(true);
 
   // Step 3: Generated credentials
   const [generatedDriverId, setGeneratedDriverId] = useState('');
@@ -42,6 +40,21 @@ export default function AddDriverScreen() {
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const resetForm = useCallback(() => {
+    setStep(1);
+    setFullName('');
+    setPhone('');
+    setEmail('');
+    setAge('');
+    setAddress('');
+    setLicenseNumber('');
+    setLicenseExpiry('2029-12-31');
+    setGeneratedDriverId('');
+    setGeneratedTempPassword('');
+    setCopiedField(null);
+    setErrors({});
+  }, []);
 
   const validateStep1 = () => {
     const errs: Record<string, string> = {};
@@ -52,6 +65,8 @@ export default function AddDriverScreen() {
       errs.phone = 'Mobile number is required';
     } else if (cleanPhone.length !== 10) {
       errs.phone = 'Enter a valid 10-digit mobile number';
+    } else if (drivers.some((d) => d.phone.replace(/\D/g, '') === cleanPhone)) {
+      errs.phone = 'Driver with this mobile number already exists in your fleet';
     }
 
     const ageNum = parseInt(age, 10);
@@ -67,10 +82,14 @@ export default function AddDriverScreen() {
 
   const validateStep2 = () => {
     const errs: Record<string, string> = {};
-    if (!licenseNumber.trim()) {
+    const cleanLicense = licenseNumber.trim().toUpperCase();
+
+    if (!cleanLicense) {
       errs.licenseNumber = 'Commercial Driving License Number is required';
-    } else if (licenseNumber.trim().length < 8) {
-      errs.licenseNumber = 'Please enter a valid DL number';
+    } else if (cleanLicense.length < 8) {
+      errs.licenseNumber = 'Please enter a valid DL number (min 8 chars)';
+    } else if (drivers.some((d) => d.licenseNumber.toUpperCase().trim() === cleanLicense)) {
+      errs.licenseNumber = 'Driver with this license number already exists in your fleet';
     }
 
     if (!licenseExpiry.trim()) {
@@ -88,7 +107,6 @@ export default function AddDriverScreen() {
       }
     } else if (step === 2) {
       if (validateStep2()) {
-        // Create driver and generate credentials
         const result = addDriver({
           name: fullName.trim(),
           phone: phone.trim(),
@@ -127,7 +145,16 @@ export default function AddDriverScreen() {
           {/* HEADER */}
           <View style={styles.header}>
             <TouchableOpacity
-              onPress={() => (step === 3 ? router.back() : step > 1 ? setStep((step - 1) as any) : router.back())}
+              onPress={() => {
+                if (step === 3) {
+                  resetForm();
+                  router.back();
+                } else if (step > 1) {
+                  setStep((step - 1) as any);
+                } else {
+                  router.back();
+                }
+              }}
               style={styles.backButton}
             >
               <Ionicons name="arrow-back" size={24} color={colors.navy} />
@@ -153,7 +180,7 @@ export default function AddDriverScreen() {
 
           <View style={styles.stepLabelsRow}>
             <Text style={[styles.stepLabel, step === 1 && styles.stepLabelActive]}>Personal</Text>
-            <Text style={[styles.stepLabel, step === 2 && styles.stepLabelActive]}>DL Documents</Text>
+            <Text style={[styles.stepLabel, step === 2 && styles.stepLabelActive]}>DL Compliance</Text>
             <Text style={[styles.stepLabel, step === 3 && styles.stepLabelActive]}>Credentials</Text>
           </View>
 
@@ -173,7 +200,10 @@ export default function AddDriverScreen() {
                 label="Full Name (as per Driving License)"
                 placeholder="e.g. Kumar Shanmugam"
                 value={fullName}
-                onChangeText={setFullName}
+                onChangeText={(val) => {
+                  setFullName(val);
+                  if (errors.fullName) setErrors((prev) => ({ ...prev, fullName: '' }));
+                }}
                 error={errors.fullName}
               />
 
@@ -181,7 +211,10 @@ export default function AddDriverScreen() {
                 label="Mobile Number (Login Identifier)"
                 placeholder="10-digit mobile number"
                 value={phone}
-                onChangeText={setPhone}
+                onChangeText={(val) => {
+                  setPhone(val);
+                  if (errors.phone) setErrors((prev) => ({ ...prev, phone: '' }));
+                }}
                 keyboardType="phone-pad"
                 maxLength={10}
                 error={errors.phone}
@@ -200,7 +233,10 @@ export default function AddDriverScreen() {
                 label="Age"
                 placeholder="e.g. 34"
                 value={age}
-                onChangeText={setAge}
+                onChangeText={(val) => {
+                  setAge(val);
+                  if (errors.age) setErrors((prev) => ({ ...prev, age: '' }));
+                }}
                 keyboardType="number-pad"
                 maxLength={2}
                 error={errors.age}
@@ -210,7 +246,10 @@ export default function AddDriverScreen() {
                 label="Residential Address"
                 placeholder="Full address, City, District"
                 value={address}
-                onChangeText={setAddress}
+                onChangeText={(val) => {
+                  setAddress(val);
+                  if (errors.address) setErrors((prev) => ({ ...prev, address: '' }));
+                }}
                 error={errors.address}
               />
 
@@ -231,7 +270,10 @@ export default function AddDriverScreen() {
                 label="Commercial Driving License Number"
                 placeholder="e.g. TN-59-2015-0084321"
                 value={licenseNumber}
-                onChangeText={setLicenseNumber}
+                onChangeText={(val) => {
+                  setLicenseNumber(val);
+                  if (errors.licenseNumber) setErrors((prev) => ({ ...prev, licenseNumber: '' }));
+                }}
                 autoCapitalize="characters"
                 error={errors.licenseNumber}
               />
@@ -240,7 +282,10 @@ export default function AddDriverScreen() {
                 label="License Validity Expiry"
                 placeholder="YYYY-MM-DD (e.g. 2029-12-31)"
                 value={licenseExpiry}
-                onChangeText={setLicenseExpiry}
+                onChangeText={(val) => {
+                  setLicenseExpiry(val);
+                  if (errors.licenseExpiry) setErrors((prev) => ({ ...prev, licenseExpiry: '' }));
+                }}
                 error={errors.licenseExpiry}
               />
 
@@ -249,7 +294,7 @@ export default function AddDriverScreen() {
                   <Ionicons name="document-text-outline" size={24} color={colors.navy} />
                   <View style={{ flex: 1, marginLeft: spacing.sm }}>
                     <Text style={styles.uploadTitle}>Driving License Scan / Photo</Text>
-                    <Text style={styles.uploadSubtitle}>Mock verification check attached</Text>
+                    <Text style={styles.uploadSubtitle}>Verification check verified</Text>
                   </View>
                   <Ionicons name="checkmark-circle" size={22} color={colors.green} />
                 </View>
@@ -330,8 +375,18 @@ export default function AddDriverScreen() {
               </View>
 
               <Button
+                title="+ Add Another Driver"
+                variant="outline"
+                onPress={resetForm}
+                style={{ marginBottom: spacing.sm }}
+              />
+
+              <Button
                 title="Done (Return to Fleet List)"
-                onPress={() => router.replace('/transport-office/drivers' as any)}
+                onPress={() => {
+                  resetForm();
+                  router.replace('/transport-office/drivers' as any);
+                }}
                 style={styles.continueButton}
               />
             </View>
@@ -454,10 +509,11 @@ const styles = StyleSheet.create({
   uploadHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: spacing.xs,
   },
   uploadTitle: {
     fontSize: 13,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: colors.navy,
   },
   uploadSubtitle: {
@@ -465,21 +521,21 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   uploadBadge: {
+    alignSelf: 'flex-start',
     backgroundColor: '#DCFCE7',
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 2,
     borderRadius: radius.pill,
-    alignSelf: 'flex-start',
-    marginTop: spacing.sm,
+    marginTop: 4,
   },
   uploadBadgeText: {
     fontSize: 9,
     fontWeight: 'bold',
-    color: colors.green,
+    color: '#15803D',
   },
   continueButton: {
     backgroundColor: colors.navy,
-    marginTop: spacing.sm,
+    borderRadius: radius.md,
   },
   credentialsSection: {
     backgroundColor: '#FFFFFF',
@@ -490,20 +546,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   successIconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: '#DCFCE7',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.md,
   },
   credentialsTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: colors.navy,
-    textAlign: 'center',
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   credentialsSubtitle: {
     fontSize: 13,
@@ -516,9 +571,9 @@ const styles = StyleSheet.create({
     width: '100%',
     backgroundColor: '#F8FAFC',
     borderRadius: radius.md,
+    padding: spacing.md,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    padding: spacing.md,
     marginBottom: spacing.md,
   },
   credentialRow: {
@@ -544,17 +599,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: radius.sm,
-    gap: 4,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   copyBtnText: {
     fontSize: 11,
     fontWeight: 'bold',
     color: colors.navy,
+    marginLeft: 4,
   },
   securityNote: {
     flexDirection: 'row',

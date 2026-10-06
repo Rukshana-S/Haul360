@@ -36,9 +36,16 @@ export default function DriverAssignmentsInbox() {
       (s.status === 'ASSIGNMENT_PENDING' || s.status === 'ACCEPTED')
   );
 
+  const [activeFilter, setActiveFilter] = useState<'PENDING' | 'ACCEPTED' | 'ALL'>('PENDING');
   const [declineTargetId, setDeclineTargetId] = useState<string | null>(null);
   const [selectedDeclineReason, setSelectedDeclineReason] = useState(DRIVER_DECLINE_REASONS[0]);
   const [successToast, setSuccessToast] = useState<string | null>(null);
+
+  const filteredAssignments = myAssignments.filter((s) => {
+    if (activeFilter === 'PENDING') return s.status === 'ASSIGNMENT_PENDING';
+    if (activeFilter === 'ACCEPTED') return s.status === 'ACCEPTED';
+    return true;
+  });
 
   const handleAccept = (shipmentId: string) => {
     acceptAssignment(shipmentId);
@@ -63,11 +70,53 @@ export default function DriverAssignmentsInbox() {
     <Screen safeArea style={styles.container}>
       {/* HEADER */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={colors.navy} />
+        <View style={styles.headerTextGroup}>
+          <Text style={styles.headerTitle}>Assignments</Text>
+          <Text style={styles.headerSubtitle}>
+            {myAssignments.length} dispatches assigned to you
+          </Text>
+        </View>
+
+        <TouchableOpacity
+          style={styles.headerIconBtn}
+          onPress={() => router.push('/office-driver/notifications' as any)}
+        >
+          <Ionicons name="notifications-outline" size={20} color={colors.navy} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Assignment Inbox</Text>
-        <View style={{ width: 24 }} />
+      </View>
+
+      {/* COMPACT FILTER PILLS */}
+      <View style={styles.filtersWrapper}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filtersContainer}
+        >
+          {(['PENDING', 'ACCEPTED', 'ALL'] as const).map((f) => {
+            const isSelected = activeFilter === f;
+            const count =
+              f === 'ALL'
+                ? myAssignments.length
+                : f === 'PENDING'
+                ? myAssignments.filter((s) => s.status === 'ASSIGNMENT_PENDING').length
+                : myAssignments.filter((s) => s.status === 'ACCEPTED').length;
+
+            const label = f === 'PENDING' ? 'Pending' : f === 'ACCEPTED' ? 'Accepted' : 'All';
+
+            return (
+              <TouchableOpacity
+                key={f}
+                style={[styles.filterPill, isSelected && styles.filterPillActive]}
+                onPress={() => setActiveFilter(f)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.filterPillText, isSelected && styles.filterPillTextActive]}>
+                  {label} ({count})
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       </View>
 
       {successToast && (
@@ -81,16 +130,18 @@ export default function DriverAssignmentsInbox() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {myAssignments.length === 0 ? (
+        {filteredAssignments.length === 0 ? (
           <View style={styles.emptyBox}>
             <Ionicons name="mail-open-outline" size={48} color={colors.textSecondary} />
-            <Text style={styles.emptyTitle}>No Pending Assignments</Text>
+            <Text style={styles.emptyTitle}>No Assignments Found</Text>
             <Text style={styles.emptySubtitle}>
-              You currently have no new shipments awaiting response from your transport office.
+              {activeFilter === 'PENDING'
+                ? 'You currently have no new shipments awaiting response.'
+                : 'No assignments found in this category.'}
             </Text>
           </View>
         ) : (
-          myAssignments.map((shipment) => {
+          filteredAssignments.map((shipment) => {
             const assignedVehicle = vehicles.find((v) => v.id === shipment.assignedVehicleId);
             const isPending = shipment.status === 'ASSIGNMENT_PENDING';
 
@@ -270,16 +321,62 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
-    marginBottom: spacing.xs,
+    paddingBottom: spacing.xs,
   },
-  backButton: {
-    padding: spacing.xs,
-    marginLeft: -spacing.xs,
+  headerTextGroup: {
+    flex: 1,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 20,
+    fontWeight: '800',
     color: colors.navy,
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 1,
+  },
+  headerIconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filtersWrapper: {
+    paddingVertical: 6,
+  },
+  filtersContainer: {
+    paddingHorizontal: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  filterPill: {
+    height: 36,
+    paddingHorizontal: 14,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterPillActive: {
+    backgroundColor: '#0F172A',
+    borderColor: '#0F172A',
+  },
+  filterPillText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  filterPillTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
   toastBox: {
     flexDirection: 'row',
@@ -299,7 +396,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.xs,
-    paddingBottom: spacing.xxl,
+    paddingBottom: 40,
     gap: spacing.md,
   },
   assignmentCard: {

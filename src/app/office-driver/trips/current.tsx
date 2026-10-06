@@ -16,13 +16,14 @@ import { typography } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
 import { useTransportOffice } from '@/context/TransportOfficeContext';
-import { TripStage } from '@/constants/transportOfficeMockData';
+import { ShipmentTimeline } from '@/components/ui/ShipmentTimeline';
 
 export default function DriverCurrentTripScreen() {
   const {
     currentDriverUser,
     shipments,
     vehicles,
+    startTrip,
     advanceTripStage,
     breakdowns,
   } = useTransportOffice();
@@ -71,29 +72,23 @@ export default function DriverCurrentTripScreen() {
     );
   }
 
-  const currentStage: TripStage = activeTrip.tripStage || 'ASSIGNED';
-
-  const getNextActionText = (stage: TripStage) => {
-    switch (stage) {
-      case 'ASSIGNED':
-        return 'Mark Ready for Pickup →';
-      case 'READY_FOR_PICKUP':
-        return 'Start Trip & Depart →';
-      case 'TRIP_STARTED':
-        return 'Mark In Transit on Highway →';
-      case 'IN_TRANSIT':
-        return 'Mark Arrived at Destination →';
-      case 'ARRIVED':
-        return 'Confirm Delivery & Complete Haul ✓';
-      case 'DELIVERED':
-      default:
-        return 'Trip Completed';
+  const getActionConfig = () => {
+    if (activeTrip.status === 'ACCEPTED') {
+      return {
+        title: 'Start Trip & Depart →',
+        onPress: () => startTrip(activeTrip.id),
+      };
     }
+    if (activeTrip.status === 'IN_TRANSIT') {
+      return {
+        title: 'Confirm Delivery & Complete Haul ✓',
+        onPress: () => advanceTripStage(activeTrip.id),
+      };
+    }
+    return null;
   };
 
-  const handleNextStage = () => {
-    advanceTripStage(activeTrip.id);
-  };
+  const actionConfig = getActionConfig();
 
   return (
     <Screen safeArea style={styles.container}>
@@ -186,64 +181,23 @@ export default function DriverCurrentTripScreen() {
         {/* INTERACTIVE TIMELINE */}
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Live Transit Milestones</Text>
-
-          <View style={styles.timelineList}>
-            {activeTrip.timeline.map((item, idx) => {
-              const isLast = idx === activeTrip.timeline.length - 1;
-
-              return (
-                <View key={idx} style={styles.timelineRow}>
-                  <View style={styles.timelineIconCol}>
-                    <View
-                      style={[
-                        styles.timelineCircle,
-                        item.completed && styles.timelineCircleCompleted,
-                      ]}
-                    >
-                      {item.completed ? (
-                        <Ionicons name="checkmark" size={10} color="#FFFFFF" />
-                      ) : (
-                        <View style={styles.timelineCircleInner} />
-                      )}
-                    </View>
-                    {!isLast && (
-                      <View
-                        style={[
-                          styles.timelineBar,
-                          item.completed && styles.timelineBarCompleted,
-                        ]}
-                      />
-                    )}
-                  </View>
-
-                  <View style={styles.timelineContentCol}>
-                    <View style={styles.timelineTitleRow}>
-                      <Text
-                        style={[
-                          styles.timelineTitle,
-                          item.completed && styles.timelineTitleCompleted,
-                        ]}
-                      >
-                        {item.title}
-                      </Text>
-                      <Text style={styles.timelineTime}>{item.time}</Text>
-                    </View>
-                    {item.description && (
-                      <Text style={styles.timelineDesc}>{item.description}</Text>
-                    )}
-                  </View>
-                </View>
-              );
-            })}
-          </View>
+          <ShipmentTimeline
+            status={activeTrip.status}
+            assignedDriverName={currentDriverUser?.name}
+            assignedVehicleNumber={assignedVehicle?.vehicleNumber}
+            createdAt={activeTrip.createdAt}
+            expectedDelivery={activeTrip.expectedDelivery}
+          />
         </View>
 
         {/* PROGRESS TRIP ACTION BUTTON */}
-        <Button
-          title={getNextActionText(currentStage)}
-          onPress={handleNextStage}
-          style={styles.progressBtn}
-        />
+        {actionConfig && (
+          <Button
+            title={actionConfig.title}
+            onPress={actionConfig.onPress}
+            style={styles.progressBtn}
+          />
+        )}
 
         {/* EMERGENCY SOS / BREAKDOWN BUTTON */}
         <TouchableOpacity

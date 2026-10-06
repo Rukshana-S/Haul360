@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,6 @@ import { Screen } from '@/components/ui/Screen';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { colors } from '@/theme/colors';
-import { typography } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
 import { useTransportOffice } from '@/context/TransportOfficeContext';
@@ -28,7 +27,7 @@ const VEHICLE_TYPES = [
 ];
 
 export default function AddVehicleScreen() {
-  const { addVehicle } = useTransportOffice();
+  const { addVehicle, vehicles } = useTransportOffice();
 
   const [vehicleNumber, setVehicleNumber] = useState('');
   const [selectedType, setSelectedType] = useState('10-Wheeler Heavy (10,000 KG)');
@@ -41,6 +40,21 @@ export default function AddVehicleScreen() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSuccess, setIsSuccess] = useState(false);
+  const [createdVehicleNumber, setCreatedVehicleNumber] = useState('');
+
+  const resetForm = useCallback(() => {
+    setVehicleNumber('');
+    setSelectedType('10-Wheeler Heavy (10,000 KG)');
+    setModel('');
+    setCapacityKg('10000');
+    setFuelType('Diesel');
+    setRcNumber('');
+    setInsuranceStatus('VALID');
+    setPermitStatus('NATIONAL_PERMIT');
+    setErrors({});
+    setIsSuccess(false);
+    setCreatedVehicleNumber('');
+  }, []);
 
   const handleSelectType = (typeStr: string) => {
     setSelectedType(typeStr);
@@ -59,6 +73,8 @@ export default function AddVehicleScreen() {
       errs.vehicleNumber = 'Registration vehicle number is required';
     } else if (cleanNumber.length < 6) {
       errs.vehicleNumber = 'Enter a valid vehicle registration number (e.g. TN38AB1234)';
+    } else if (vehicles.some((v) => v.vehicleNumber.replace(/\s+/g, '').toUpperCase() === cleanNumber)) {
+      errs.vehicleNumber = `Vehicle ${cleanNumber} is already registered in your fleet.`;
     }
 
     if (!model.trim()) errs.model = 'Model / Chassis name is required';
@@ -68,8 +84,11 @@ export default function AddVehicleScreen() {
       errs.capacityKg = 'Enter valid payload capacity in KG';
     }
 
-    if (!rcNumber.trim()) {
+    const cleanRc = rcNumber.replace(/\s+/g, '').toUpperCase();
+    if (!cleanRc) {
       errs.rcNumber = 'RC Registration certificate number is required';
+    } else if (vehicles.some((v) => v.rcNumber.replace(/\s+/g, '').toUpperCase() === cleanRc)) {
+      errs.rcNumber = `Vehicle with RC ${cleanRc} is already registered in your fleet.`;
     }
 
     setErrors(errs);
@@ -79,8 +98,9 @@ export default function AddVehicleScreen() {
   const handleAdd = () => {
     if (!validate()) return;
 
+    const num = vehicleNumber.toUpperCase().trim();
     addVehicle({
-      vehicleNumber: vehicleNumber.toUpperCase().trim(),
+      vehicleNumber: num,
       vehicleType: selectedType.split('(')[0].trim(),
       model: model.trim(),
       capacityKg: parseInt(capacityKg, 10),
@@ -90,6 +110,7 @@ export default function AddVehicleScreen() {
       permitStatus,
     });
 
+    setCreatedVehicleNumber(num);
     setIsSuccess(true);
   };
 
@@ -102,12 +123,22 @@ export default function AddVehicleScreen() {
           </View>
           <Text style={styles.successTitle}>Vehicle Added Successfully</Text>
           <Text style={styles.successSubtitle}>
-            Vehicle <Text style={{ fontWeight: 'bold', color: colors.navy }}>{vehicleNumber.toUpperCase()}</Text> is registered to your transport office fleet as an available dispatch asset.
+            Vehicle <Text style={{ fontWeight: 'bold', color: colors.navy }}>{createdVehicleNumber}</Text> is registered to your transport office fleet as an available dispatch asset.
           </Text>
 
           <Button
+            title="+ Add Another Vehicle"
+            variant="outline"
+            onPress={resetForm}
+            style={{ width: '100%', marginBottom: spacing.sm }}
+          />
+
+          <Button
             title="Return to Vehicle Assets"
-            onPress={() => router.replace('/transport-office/vehicles' as any)}
+            onPress={() => {
+              resetForm();
+              router.replace('/transport-office/vehicles' as any);
+            }}
             style={styles.returnButton}
           />
         </View>
@@ -127,7 +158,13 @@ export default function AddVehicleScreen() {
         >
           {/* HEADER */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <TouchableOpacity
+              onPress={() => {
+                resetForm();
+                router.back();
+              }}
+              style={styles.backButton}
+            >
               <Ionicons name="arrow-back" size={24} color={colors.navy} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Register New Vehicle</Text>
@@ -148,35 +185,43 @@ export default function AddVehicleScreen() {
               label="Vehicle Registration Number"
               placeholder="e.g. TN38AB1234"
               value={vehicleNumber}
-              onChangeText={setVehicleNumber}
+              onChangeText={(val) => {
+                setVehicleNumber(val);
+                if (errors.vehicleNumber) setErrors((prev) => ({ ...prev, vehicleNumber: '' }));
+              }}
               autoCapitalize="characters"
               error={errors.vehicleNumber}
             />
 
             <Input
-              label="Vehicle Make & Model"
-              placeholder="e.g. Tata Signa 2823.K / Ashok Leyland 3520"
+              label="Make & Model / Chassis"
+              placeholder="e.g. Tata Signa 2823.K"
               value={model}
-              onChangeText={setModel}
+              onChangeText={(val) => {
+                setModel(val);
+                if (errors.model) setErrors((prev) => ({ ...prev, model: '' }));
+              }}
               error={errors.model}
             />
 
-            {/* VEHICLE TYPE SELECTOR */}
-            <Text style={styles.selectorLabel}>Vehicle Classification & Body</Text>
-            <View style={styles.typeOptionsContainer}>
-              {VEHICLE_TYPES.map((type) => {
-                const isSelected = selectedType === type;
+            <Text style={styles.fieldLabel}>Vehicle Body Category & Class</Text>
+            <View style={styles.typeSelectorGrid}>
+              {VEHICLE_TYPES.map((typeStr) => {
+                const isSelected = selectedType === typeStr;
                 return (
                   <TouchableOpacity
-                    key={type}
-                    style={[styles.typeOptionCard, isSelected && styles.typeOptionCardActive]}
-                    onPress={() => handleSelectType(type)}
+                    key={typeStr}
+                    style={[styles.typeButton, isSelected && styles.typeButtonSelected]}
+                    onPress={() => handleSelectType(typeStr)}
                   >
-                    <View style={[styles.typeRadio, isSelected && styles.typeRadioActive]}>
-                      {isSelected && <Ionicons name="checkmark" size={12} color="#FFFFFF" />}
-                    </View>
-                    <Text style={[styles.typeOptionText, isSelected && styles.typeOptionTextActive]}>
-                      {type}
+                    <Ionicons
+                      name="bus-outline"
+                      size={16}
+                      color={isSelected ? colors.blue : colors.textSecondary}
+                      style={{ marginRight: 6 }}
+                    />
+                    <Text style={[styles.typeButtonText, isSelected && styles.typeButtonTextSelected]}>
+                      {typeStr}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -184,26 +229,29 @@ export default function AddVehicleScreen() {
             </View>
 
             <Input
-              label="Payload Capacity (in KG)"
-              placeholder="e.g. 10000"
+              label="Certified Payload Capacity (in KG)"
+              placeholder="10000"
               value={capacityKg}
-              onChangeText={setCapacityKg}
+              onChangeText={(val) => {
+                setCapacityKg(val);
+                if (errors.capacityKg) setErrors((prev) => ({ ...prev, capacityKg: '' }));
+              }}
               keyboardType="number-pad"
               error={errors.capacityKg}
             />
 
-            {/* FUEL TYPE */}
-            <Text style={styles.selectorLabel}>Fuel Type</Text>
-            <View style={styles.fuelTypesRow}>
+            {/* FUEL TYPE SELECTION */}
+            <Text style={styles.fieldLabel}>Fuel Type</Text>
+            <View style={styles.segmentRow}>
               {(['Diesel', 'CNG', 'Electric'] as const).map((fuel) => {
                 const isSelected = fuelType === fuel;
                 return (
                   <TouchableOpacity
                     key={fuel}
-                    style={[styles.fuelBtn, isSelected && styles.fuelBtnActive]}
+                    style={[styles.segmentBtn, isSelected && styles.segmentBtnActive]}
                     onPress={() => setFuelType(fuel)}
                   >
-                    <Text style={[styles.fuelBtnText, isSelected && styles.fuelBtnTextActive]}>
+                    <Text style={[styles.segmentBtnText, isSelected && styles.segmentBtnTextActive]}>
                       {fuel}
                     </Text>
                   </TouchableOpacity>
@@ -212,45 +260,58 @@ export default function AddVehicleScreen() {
             </View>
           </View>
 
-          <View style={styles.formSection}>
-            <Text style={styles.sectionTitle}>Compliance & Permits</Text>
+          {/* COMPLIANCE & PERMITS */}
+          <View style={[styles.formSection, { marginTop: spacing.md }]}>
+            <Text style={styles.sectionTitle}>Compliance & Registration</Text>
 
             <Input
               label="RC Certificate Number"
-              placeholder="e.g. RC-TN38-2021-9988"
+              placeholder="e.g. RC-TN38-2023-9988"
               value={rcNumber}
-              onChangeText={setRcNumber}
+              onChangeText={(val) => {
+                setRcNumber(val);
+                if (errors.rcNumber) setErrors((prev) => ({ ...prev, rcNumber: '' }));
+              }}
               autoCapitalize="characters"
               error={errors.rcNumber}
             />
 
-            {/* PERMIT STATUS */}
-            <Text style={styles.selectorLabel}>Commercial Road Permit</Text>
-            <View style={styles.fuelTypesRow}>
+            <Text style={styles.fieldLabel}>Permit Coverage</Text>
+            <View style={styles.segmentRow}>
               <TouchableOpacity
-                style={[styles.fuelBtn, permitStatus === 'NATIONAL_PERMIT' && styles.fuelBtnActive]}
+                style={[styles.segmentBtn, permitStatus === 'NATIONAL_PERMIT' && styles.segmentBtnActive]}
                 onPress={() => setPermitStatus('NATIONAL_PERMIT')}
               >
-                <Text
-                  style={[
-                    styles.fuelBtnText,
-                    permitStatus === 'NATIONAL_PERMIT' && styles.fuelBtnTextActive,
-                  ]}
-                >
-                  National Permit (All India)
+                <Text style={[styles.segmentBtnText, permitStatus === 'NATIONAL_PERMIT' && styles.segmentBtnTextActive]}>
+                  National (All-India)
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.fuelBtn, permitStatus === 'STATE_PERMIT' && styles.fuelBtnActive]}
+                style={[styles.segmentBtn, permitStatus === 'STATE_PERMIT' && styles.segmentBtnActive]}
                 onPress={() => setPermitStatus('STATE_PERMIT')}
               >
-                <Text
-                  style={[
-                    styles.fuelBtnText,
-                    permitStatus === 'STATE_PERMIT' && styles.fuelBtnTextActive,
-                  ]}
-                >
+                <Text style={[styles.segmentBtnText, permitStatus === 'STATE_PERMIT' && styles.segmentBtnTextActive]}>
                   State Permit
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.fieldLabel}>Insurance Status</Text>
+            <View style={styles.segmentRow}>
+              <TouchableOpacity
+                style={[styles.segmentBtn, insuranceStatus === 'VALID' && styles.segmentBtnActive]}
+                onPress={() => setInsuranceStatus('VALID')}
+              >
+                <Text style={[styles.segmentBtnText, insuranceStatus === 'VALID' && styles.segmentBtnTextActive]}>
+                  Valid Policy
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.segmentBtn, insuranceStatus === 'EXPIRING_SOON' && styles.segmentBtnActive]}
+                onPress={() => setInsuranceStatus('EXPIRING_SOON')}
+              >
+                <Text style={[styles.segmentBtnText, insuranceStatus === 'EXPIRING_SOON' && styles.segmentBtnTextActive]}>
+                  Expiring Soon
                 </Text>
               </TouchableOpacity>
             </View>
@@ -312,115 +373,94 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    marginBottom: spacing.md,
   },
   sectionTitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: 'bold',
     color: colors.navy,
     marginBottom: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-    paddingBottom: spacing.xs,
   },
-  selectorLabel: {
+  fieldLabel: {
     fontSize: 13,
-    fontWeight: 'bold',
-    color: colors.textPrimary,
+    fontWeight: '600',
+    color: colors.navy,
     marginBottom: spacing.xs,
+    marginTop: spacing.xs,
   },
-  typeOptionsContainer: {
+  typeSelectorGrid: {
     gap: spacing.xs,
     marginBottom: spacing.md,
   },
-  typeOptionCard: {
+  typeButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F8FAFC',
+    borderRadius: radius.md,
+    padding: spacing.sm,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderRadius: radius.md,
-    padding: spacing.md,
   },
-  typeOptionCardActive: {
-    borderColor: colors.navy,
-    backgroundColor: '#EEF2FF',
+  typeButtonSelected: {
+    backgroundColor: '#EFF6FF',
+    borderColor: colors.blue,
   },
-  typeRadio: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 1.5,
-    borderColor: '#94A3B8',
-    marginRight: spacing.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  typeRadioActive: {
-    borderColor: colors.navy,
-    backgroundColor: colors.navy,
-  },
-  typeOptionText: {
-    fontSize: 12,
-    color: colors.navy,
+  typeButtonText: {
+    fontSize: 13,
+    color: colors.textSecondary,
     fontWeight: '500',
   },
-  typeOptionTextActive: {
+  typeButtonTextSelected: {
+    color: colors.navy,
     fontWeight: 'bold',
   },
-  fuelTypesRow: {
+  segmentRow: {
     flexDirection: 'row',
-    gap: spacing.sm,
+    gap: spacing.xs,
     marginBottom: spacing.md,
   },
-  fuelBtn: {
+  segmentBtn: {
     flex: 1,
+    paddingVertical: 10,
     backgroundColor: '#F8FAFC',
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderRadius: radius.md,
-    paddingVertical: spacing.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  fuelBtnActive: {
+  segmentBtnActive: {
     backgroundColor: colors.navy,
     borderColor: colors.navy,
   },
-  fuelBtnText: {
+  segmentBtnText: {
     fontSize: 12,
     fontWeight: '600',
     color: colors.textSecondary,
   },
-  fuelBtnTextActive: {
+  segmentBtnTextActive: {
     color: '#FFFFFF',
+    fontWeight: 'bold',
   },
   submitButton: {
     backgroundColor: colors.navy,
-    marginTop: spacing.sm,
-    marginBottom: spacing.lg,
+    borderRadius: radius.md,
+    marginTop: spacing.lg,
   },
   successContainer: {
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: spacing.xl,
   },
   successIconCircle: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: '#DCFCE7',
-    alignItems: 'center',
-    justifyContent: 'center',
     marginBottom: spacing.lg,
   },
   successTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: 'bold',
     color: colors.navy,
+    marginBottom: spacing.xs,
     textAlign: 'center',
-    marginBottom: spacing.sm,
   },
   successSubtitle: {
     fontSize: 14,
@@ -432,5 +472,6 @@ const styles = StyleSheet.create({
   returnButton: {
     width: '100%',
     backgroundColor: colors.navy,
+    borderRadius: radius.md,
   },
 });

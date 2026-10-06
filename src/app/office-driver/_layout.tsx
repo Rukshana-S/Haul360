@@ -1,10 +1,12 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '@/theme/colors';
 import { useTransportOffice } from '@/context/TransportOfficeContext';
 
 export default function OfficeDriverLayout() {
+  const insets = useSafeAreaInsets();
   const { shipments, currentDriverUser } = useTransportOffice();
 
   const driverId = currentDriverUser?.id;
@@ -18,6 +20,8 @@ export default function OfficeDriverLayout() {
       (s.status === 'ACCEPTED' || s.status === 'IN_TRANSIT')
   );
 
+  const bottomInset = Math.max(insets.bottom, 8);
+
   return (
     <Tabs
       screenOptions={{
@@ -29,16 +33,36 @@ export default function OfficeDriverLayout() {
           borderTopWidth: 1,
           borderTopColor: '#E2E8F0',
           elevation: 8,
-          height: 62,
-          paddingBottom: 8,
-          paddingTop: 8,
+          shadowColor: '#000000',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.06,
+          shadowRadius: 4,
+          height: 58 + bottomInset,
+          paddingBottom: bottomInset,
+          paddingTop: 6,
+        },
+        tabBarItemStyle: {
+          paddingVertical: 2,
         },
         tabBarLabelStyle: {
           fontSize: 11,
-          fontWeight: 'bold',
+          fontWeight: '600',
+          marginTop: 2,
+        },
+        tabBarBadgeStyle: {
+          backgroundColor: '#DC2626',
+          color: '#FFFFFF',
+          fontSize: 9,
+          fontWeight: '700',
+          minWidth: 16,
+          height: 16,
+          borderRadius: 8,
+          lineHeight: 14,
+          paddingHorizontal: 3,
         },
       }}
     >
+      {/* 1. HOME */}
       <Tabs.Screen
         name="index"
         options={{
@@ -49,8 +73,9 @@ export default function OfficeDriverLayout() {
         }}
       />
 
+      {/* 2. ASSIGNMENTS */}
       <Tabs.Screen
-        name="assignments"
+        name="assignments/index"
         options={{
           title: 'Assignments',
           tabBarIcon: ({ color, focused }) => (
@@ -60,10 +85,11 @@ export default function OfficeDriverLayout() {
         }}
       />
 
+      {/* 3. TRIPS */}
       <Tabs.Screen
-        name="trips"
+        name="trips/index"
         options={{
-          title: 'My Trip',
+          title: 'Trips',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'navigate' : 'navigate-outline'} size={22} color={color} />
           ),
@@ -71,6 +97,7 @@ export default function OfficeDriverLayout() {
         }}
       />
 
+      {/* 4. PROFILE */}
       <Tabs.Screen
         name="profile"
         options={{
@@ -81,11 +108,16 @@ export default function OfficeDriverLayout() {
         }}
       />
 
-      {/* Hidden sub-screens */}
+      {/* HIDE ALL SECONDARY & NESTED SCREENS FROM TAB BAR */}
+      <Tabs.Screen name="assignments/[id]" options={{ href: null }} />
+      <Tabs.Screen name="trips/current" options={{ href: null }} />
+      <Tabs.Screen name="trips/history" options={{ href: null }} />
+      <Tabs.Screen name="trips/[id]" options={{ href: null }} />
+      <Tabs.Screen name="breakdown/create" options={{ href: null }} />
+      <Tabs.Screen name="breakdown/status" options={{ href: null }} />
       <Tabs.Screen name="first-login" options={{ href: null }} />
       <Tabs.Screen name="notifications" options={{ href: null }} />
       <Tabs.Screen name="settings" options={{ href: null }} />
-      <Tabs.Screen name="breakdown" options={{ href: null }} />
     </Tabs>
   );
 }

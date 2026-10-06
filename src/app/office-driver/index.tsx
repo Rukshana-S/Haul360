@@ -11,7 +11,6 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/components/ui/Screen';
 import { colors } from '@/theme/colors';
-import { typography } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
 import { brand } from '@/constants/brand';
@@ -29,7 +28,6 @@ export default function OfficeDriverDashboard() {
   const driver = currentDriverUser;
   const driverId = driver?.id || 'H360-D-1042';
 
-  // Find assignments for this driver
   const pendingAssignments = shipments.filter(
     (s) => s.assignedDriverId === driverId && s.status === 'ASSIGNMENT_PENDING'
   );
@@ -52,6 +50,18 @@ export default function OfficeDriverDashboard() {
 
   const unreadNotifs = driverNotifications.filter((n) => !n.read).length;
 
+  const getAvailabilityInfo = () => {
+    if (activeTrip) {
+      return { label: 'On Trip', bg: '#DBEAFE', text: '#1D4ED8', dot: '#2563EB' };
+    }
+    if (pendingAssignments.length > 0) {
+      return { label: 'Assigned', bg: '#FEF3C7', text: '#B45309', dot: '#F59E0B' };
+    }
+    return { label: 'Available', bg: '#DCFCE7', text: '#15803D', dot: '#22C55E' };
+  };
+
+  const avail = getAvailabilityInfo();
+
   return (
     <Screen safeArea style={styles.container}>
       <ScrollView
@@ -60,281 +70,230 @@ export default function OfficeDriverDashboard() {
       >
         {/* HEADER */}
         <View style={styles.header}>
-          <View>
+          <View style={styles.headerLeft}>
             <Image source={brand.logo} style={styles.logo} contentFit="contain" />
-            <Text style={styles.driverIdBadge}>Driver ID: {driverId}</Text>
+            <View>
+              <Text style={styles.brandTitle}>Haul360</Text>
+              <Text style={styles.driverIdText}>{driverId}</Text>
+            </View>
           </View>
 
           <View style={styles.headerRight}>
             <TouchableOpacity
-              style={styles.iconBtn}
+              style={styles.iconButton}
               onPress={() => router.push('/office-driver/notifications' as any)}
             >
-              <Ionicons name="notifications-outline" size={22} color={colors.navy} />
+              <Ionicons name="notifications-outline" size={20} color={colors.navy} />
               {unreadNotifs > 0 && (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{unreadNotifs}</Text>
+                <View style={styles.badgeCount}>
+                  <Text style={styles.badgeCountText}>{unreadNotifs}</Text>
                 </View>
               )}
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.avatarBtn}
+              style={styles.avatarButton}
               onPress={() => router.push('/office-driver/profile' as any)}
             >
-              <Ionicons name="person" size={20} color={colors.navy} />
+              <Ionicons name="person-outline" size={18} color={colors.navy} />
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* WELCOME SECTION */}
-        <View style={styles.welcomeCard}>
-          <View style={styles.welcomeLeft}>
-            <Text style={styles.greetingText}>Good Morning,</Text>
-            <Text style={styles.driverNameText}>{driver?.name || 'Kumar S.'}</Text>
-            <Text style={styles.officeText}>Transport Office: Apex Freight Solutions</Text>
+        {/* GREETING & AVAILABILITY */}
+        <View style={styles.greetingRow}>
+          <View>
+            <Text style={styles.greetingSub}>Good Morning,</Text>
+            <Text style={styles.driverName}>{driver?.name || 'Transport Driver'}</Text>
           </View>
 
-          <View
-            style={[
-              styles.statusPill,
-              activeTrip
-                ? { backgroundColor: '#DBEAFE' }
-                : pendingAssignments.length > 0
-                ? { backgroundColor: '#FEF3C7' }
-                : { backgroundColor: '#DCFCE7' },
-            ]}
-          >
-            <View
-              style={[
-                styles.statusDot,
-                activeTrip
-                  ? { backgroundColor: colors.blue }
-                  : pendingAssignments.length > 0
-                  ? { backgroundColor: colors.orange }
-                  : { backgroundColor: colors.green },
-              ]}
-            />
-            <Text
-              style={[
-                styles.statusPillText,
-                activeTrip
-                  ? { color: '#1D4ED8' }
-                  : pendingAssignments.length > 0
-                  ? { color: '#B45309' }
-                  : { color: '#15803D' },
-              ]}
-            >
-              {activeTrip
-                ? 'ON TRIP'
-                : pendingAssignments.length > 0
-                ? 'ASSIGNED'
-                : 'AVAILABLE'}
+          <View style={[styles.availabilityBadge, { backgroundColor: avail.bg }]}>
+            <View style={[styles.availabilityDot, { backgroundColor: avail.dot }]} />
+            <Text style={[styles.availabilityText, { color: avail.text }]}>
+              {avail.label}
             </Text>
           </View>
         </View>
 
-        {/* ACTIVE BREAKDOWN ALERT BANNER */}
+        {/* ACTIVE BREAKDOWN ALERT (IF ANY) */}
         {activeBreakdown && (
           <TouchableOpacity
-            style={styles.sosCard}
-            activeOpacity={0.8}
+            style={styles.breakdownNotice}
+            activeOpacity={0.85}
             onPress={() => router.push('/office-driver/breakdown/status' as any)}
           >
-            <View style={styles.sosHeader}>
-              <View style={styles.sosBadge}>
-                <Ionicons name="warning" size={14} color="#B91C1C" style={{ marginRight: 4 }} />
-                <Text style={styles.sosBadgeText}>ROADSIDE ASSISTANCE ACTIVE</Text>
+            <View style={styles.breakdownNoticeHeader}>
+              <View style={styles.breakdownBadge}>
+                <Ionicons name="warning" size={12} color="#B91C1C" style={{ marginRight: 4 }} />
+                <Text style={styles.breakdownBadgeText}>ROADSIDE ASSISTANCE ACTIVE</Text>
               </View>
-              <Text style={styles.sosStatus}>{activeBreakdown.status.replace(/_/g, ' ')}</Text>
+              <Text style={styles.breakdownTime}>{activeBreakdown.status.replace(/_/g, ' ')}</Text>
             </View>
-            <Text style={styles.sosTitle}>{activeBreakdown.issueType} on {activeBreakdown.vehicleNumber}</Text>
-            <Text style={styles.sosDesc}>
+            <Text style={styles.breakdownTitle}>
+              {activeBreakdown.issueType} on {activeBreakdown.vehicleNumber}
+            </Text>
+            <Text style={styles.breakdownSub}>
               {activeBreakdown.assignedMechanicName
-                ? `Mechanic: ${activeBreakdown.assignedMechanicName} (ETA ~${activeBreakdown.mechanicEtaMinutes || 18}m)`
-                : 'Your Transport Office dispatch is dispatching a highway mechanic.'}
+                ? `Assigned: ${activeBreakdown.assignedMechanicName} (~${activeBreakdown.mechanicEtaMinutes || 15}m ETA)`
+                : 'Dispatch is coordinating nearby highway assistance.'}
             </Text>
-            <Text style={styles.sosAction}>View Live Assistance Tracking →</Text>
+            <Text style={styles.breakdownAction}>View Live Mechanic Status →</Text>
           </TouchableOpacity>
         )}
 
-        {/* PENDING ASSIGNMENT BANNER */}
-        {pendingAssignments.length > 0 && !activeTrip && (
-          <TouchableOpacity
-            style={styles.pendingAssignmentCard}
-            activeOpacity={0.9}
-            onPress={() => router.push('/office-driver/assignments' as any)}
-          >
-            <View style={styles.pendingHeader}>
-              <View style={styles.pendingBadge}>
-                <Ionicons name="cube" size={14} color="#1E3A8A" style={{ marginRight: 4 }} />
-                <Text style={styles.pendingBadgeText}>NEW DISPATCH ASSIGNMENT</Text>
+        {/* CURRENT TRIP SECTION */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Current Trip</Text>
+        </View>
+
+        {activeTrip ? (
+          <View style={styles.currentTripCard}>
+            <View style={styles.tripCardHeader}>
+              <Text style={styles.shipmentId}>#{activeTrip.id}</Text>
+              <View
+                style={[
+                  styles.statusPill,
+                  activeTrip.status === 'IN_TRANSIT'
+                    ? { backgroundColor: '#DBEAFE' }
+                    : { backgroundColor: '#DCFCE7' },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.statusPillDot,
+                    { backgroundColor: activeTrip.status === 'IN_TRANSIT' ? '#2563EB' : '#16A34A' },
+                  ]}
+                />
+                <Text
+                  style={[
+                    styles.statusPillText,
+                    { color: activeTrip.status === 'IN_TRANSIT' ? '#1D4ED8' : '#15803D' },
+                  ]}
+                >
+                  {activeTrip.status === 'IN_TRANSIT' ? 'In Progress' : 'Accepted'}
+                </Text>
               </View>
-              <Text style={styles.pendingTime}>Requires Response</Text>
             </View>
 
-            <Text style={styles.pendingTitle}>
-              Shipment #{pendingAssignments[0].id}: {pendingAssignments[0].origin} → {pendingAssignments[0].destination}
-            </Text>
-            <Text style={styles.pendingDesc}>
-              Cargo: {pendingAssignments[0].cargoType} ({pendingAssignments[0].cargoWeightKg.toLocaleString()} KG)
-            </Text>
-
-            <View style={styles.pendingActionRow}>
-              <Text style={styles.pendingActionText}>Review & Accept / Decline →</Text>
-            </View>
-          </TouchableOpacity>
-        )}
-
-        {/* ACTIVE TRIP IN PROGRESS */}
-        {activeTrip && (
-          <View style={styles.activeTripCard}>
-            <View style={styles.activeTripHeader}>
-              <View style={styles.activeTripBadge}>
-                <Ionicons name="navigate" size={14} color="#15803D" style={{ marginRight: 4 }} />
-                <Text style={styles.activeTripBadgeText}>ACTIVE TRIP IN PROGRESS</Text>
+            {/* ROUTE DISPLAY */}
+            <View style={styles.routeContainer}>
+              <View style={styles.routeCol}>
+                <View style={styles.routePointRow}>
+                  <View style={styles.dotOrigin} />
+                  <Text style={styles.routeCity}>{activeTrip.origin}</Text>
+                </View>
+                <Text style={styles.routeAddress} numberOfLines={1}>{activeTrip.originAddress}</Text>
               </View>
-              <Text style={styles.activeTripId}>#{activeTrip.id}</Text>
+
+              <View style={styles.routeArrowCol}>
+                <Ionicons name="arrow-forward" size={14} color={colors.navy} />
+                <Text style={styles.distanceText}>{activeTrip.distanceKm} KM</Text>
+              </View>
+
+              <View style={styles.routeCol}>
+                <View style={styles.routePointRow}>
+                  <View style={styles.dotDest} />
+                  <Text style={styles.routeCity}>{activeTrip.destination}</Text>
+                </View>
+                <Text style={styles.routeAddress} numberOfLines={1}>{activeTrip.destinationAddress}</Text>
+              </View>
             </View>
 
-            <View style={styles.routeBox}>
-              <Text style={styles.routeCity}>{activeTrip.origin}</Text>
-              <Ionicons name="arrow-forward" size={16} color={colors.navy} style={{ marginHorizontal: 8 }} />
-              <Text style={styles.routeCity}>{activeTrip.destination}</Text>
+            {/* VEHICLE & CARGO INFO */}
+            <View style={styles.tripMetaBox}>
+              <View style={styles.metaRow}>
+                <Text style={styles.metaLabel}>Vehicle:</Text>
+                <Text style={styles.metaVal}>
+                  {assignedVehicle ? `${assignedVehicle.vehicleNumber} (${assignedVehicle.vehicleType})` : 'Assigned Asset'}
+                </Text>
+              </View>
+              <View style={styles.metaRow}>
+                <Text style={styles.metaLabel}>Cargo:</Text>
+                <Text style={styles.metaVal}>
+                  {activeTrip.cargoType} ({activeTrip.cargoWeightKg.toLocaleString()} KG)
+                </Text>
+              </View>
             </View>
 
-            <View style={styles.tripMetaRow}>
-              <Text style={styles.tripMetaLabel}>Assigned Vehicle:</Text>
-              <Text style={styles.tripMetaValue}>
-                {assignedVehicle ? `${assignedVehicle.vehicleNumber} (${assignedVehicle.vehicleType})` : 'Vehicle Asset'}
-              </Text>
-            </View>
-
-            <View style={styles.tripButtonsRow}>
+            {/* ACTION BUTTONS */}
+            <View style={styles.actionButtonsRow}>
               <TouchableOpacity
-                style={styles.openTripBtn}
+                style={styles.viewTripButton}
+                activeOpacity={0.85}
                 onPress={() => router.push('/office-driver/trips/current' as any)}
               >
-                <Text style={styles.openTripBtnText}>Open Live Trip Tracker →</Text>
+                <Ionicons name="navigate" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
+                <Text style={styles.viewTripButtonText}>VIEW TRIP</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.sosSmallBtn}
+                style={styles.sosButton}
+                activeOpacity={0.85}
                 onPress={() => router.push('/office-driver/breakdown/create' as any)}
               >
-                <Ionicons name="warning" size={16} color="#DC2626" />
-                <Text style={styles.sosSmallBtnText}>SOS</Text>
+                <Ionicons name="warning-outline" size={15} color="#DC2626" style={{ marginRight: 4 }} />
+                <Text style={styles.sosButtonText}>SOS</Text>
               </TouchableOpacity>
             </View>
           </View>
+        ) : (
+          <View style={styles.emptyTripCard}>
+            <View style={styles.emptyIconCircle}>
+              <Ionicons name="checkmark-done" size={22} color={colors.green} />
+            </View>
+            <Text style={styles.emptyTitle}>No active trip</Text>
+            <Text style={styles.emptySub}>
+              You are available for your next transport dispatch.
+            </Text>
+          </View>
         )}
 
-        {/* DRIVER STATS */}
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Performance & Duty</Text>
-        </View>
-
-        <View style={styles.statsGrid}>
-          <View style={styles.statCard}>
-            <View style={[styles.statIcon, { backgroundColor: '#EFF6FF' }]}>
-              <Ionicons name="mail-unread-outline" size={18} color={colors.blue} />
+        {/* PENDING ASSIGNMENT SECTION */}
+        {pendingAssignments.length > 0 && (
+          <View style={{ marginTop: spacing.sm }}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>New Assignment</Text>
             </View>
-            <Text style={styles.statVal}>{pendingAssignments.length}</Text>
-            <Text style={styles.statLbl}>Pending Inbox</Text>
+
+            {pendingAssignments.map((assignment) => {
+              const vehicle = vehicles.find((v) => v.id === assignment.assignedVehicleId);
+
+              return (
+                <View key={assignment.id} style={styles.pendingCard}>
+                  <View style={styles.pendingCardHeader}>
+                    <View style={styles.newBadge}>
+                      <Ionicons name="mail-unread" size={11} color="#B45309" style={{ marginRight: 4 }} />
+                      <Text style={styles.newBadgeText}>NEW ASSIGNMENT</Text>
+                    </View>
+                    <Text style={styles.pendingShipmentId}>#{assignment.id}</Text>
+                  </View>
+
+                  <View style={styles.pendingRouteRow}>
+                    <Text style={styles.pendingCity}>{assignment.origin}</Text>
+                    <Ionicons name="arrow-forward" size={13} color={colors.navy} style={{ marginHorizontal: 6 }} />
+                    <Text style={styles.pendingCity}>{assignment.destination}</Text>
+                  </View>
+
+                  <View style={styles.pendingVehicleRow}>
+                    <Text style={styles.pendingMetaLabel}>Vehicle:</Text>
+                    <Text style={styles.pendingMetaVal}>
+                      {vehicle ? `${vehicle.vehicleNumber} (${vehicle.vehicleType})` : 'Yard Asset'}
+                    </Text>
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.viewAssignmentBtn}
+                    activeOpacity={0.8}
+                    onPress={() => router.push('/office-driver/assignments' as any)}
+                  >
+                    <Text style={styles.viewAssignmentBtnText}>VIEW ASSIGNMENT</Text>
+                    <Ionicons name="chevron-forward" size={13} color={colors.blue} />
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
           </View>
-
-          <View style={styles.statCard}>
-            <View style={[styles.statIcon, { backgroundColor: '#DCFCE7' }]}>
-              <Ionicons name="navigate-outline" size={18} color={colors.green} />
-            </View>
-            <Text style={styles.statVal}>{activeTrip ? 1 : 0}</Text>
-            <Text style={styles.statLbl}>Active Trip</Text>
-          </View>
-
-          <View style={styles.statCard}>
-            <View style={[styles.statIcon, { backgroundColor: '#FEF3C7' }]}>
-              <Ionicons name="checkmark-done-circle-outline" size={18} color={colors.orange} />
-            </View>
-            <Text style={styles.statVal}>{driver?.completedTripsCount || 142}</Text>
-            <Text style={styles.statLbl}>Completed</Text>
-          </View>
-
-          <View style={styles.statCard}>
-            <View style={[styles.statIcon, { backgroundColor: '#F3E8FF' }]}>
-              <Ionicons name="star-outline" size={18} color="#7E22CE" />
-            </View>
-            <Text style={styles.statVal}>★ {driver?.rating.toFixed(1) || '4.9'}</Text>
-            <Text style={styles.statLbl}>Fleet Rating</Text>
-          </View>
-        </View>
-
-        {/* QUICK ACTIONS */}
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Driver Hub Actions</Text>
-        </View>
-
-        <View style={styles.actionsGrid}>
-          <TouchableOpacity
-            style={styles.actionCard}
-            onPress={() => router.push('/office-driver/assignments' as any)}
-          >
-            <View style={[styles.actionIconCircle, { backgroundColor: '#EFF6FF' }]}>
-              <Ionicons name="mail-unread" size={20} color={colors.blue} />
-            </View>
-            <Text style={styles.actionTitle}>Assignment Inbox</Text>
-            <Text style={styles.actionSub}>{pendingAssignments.length} pending</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.actionCard}
-            onPress={() => router.push('/office-driver/trips/current' as any)}
-          >
-            <View style={[styles.actionIconCircle, { backgroundColor: '#DCFCE7' }]}>
-              <Ionicons name="navigate" size={20} color={colors.green} />
-            </View>
-            <Text style={styles.actionTitle}>Current Trip</Text>
-            <Text style={styles.actionSub}>{activeTrip ? 'In Progress' : 'No active haul'}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.actionCard}
-            onPress={() => router.push('/office-driver/trips/history' as any)}
-          >
-            <View style={[styles.actionIconCircle, { backgroundColor: '#FEF3C7' }]}>
-              <Ionicons name="time" size={20} color={colors.orange} />
-            </View>
-            <Text style={styles.actionTitle}>Trip History</Text>
-            <Text style={styles.actionSub}>View past routes</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.actionCard}
-            onPress={() => router.push('/office-driver/breakdown/create' as any)}
-          >
-            <View style={[styles.actionIconCircle, { backgroundColor: '#FEE2E2' }]}>
-              <Ionicons name="warning" size={20} color="#DC2626" />
-            </View>
-            <Text style={[styles.actionTitle, { color: '#B91C1C' }]}>SOS Breakdown</Text>
-            <Text style={styles.actionSub}>Roadside assist</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* ASSIGNED ASSET STATUS (NO PERMANENT VEHICLE) */}
-        <View style={styles.assetCard}>
-          <Text style={styles.assetCardTitle}>Current Fleet Asset Context</Text>
-          <View style={styles.assetRow}>
-            <Text style={styles.assetLabel}>Assigned Vehicle Asset:</Text>
-            <Text style={styles.assetValue}>
-              {assignedVehicle ? `${assignedVehicle.vehicleNumber} (${assignedVehicle.vehicleType})` : 'None (Off duty / In yard)'}
-            </Text>
-          </View>
-          <View style={styles.assetRow}>
-            <Text style={styles.assetLabel}>Assigned Active Haul:</Text>
-            <Text style={styles.assetValue}>
-              {activeTrip ? `#${activeTrip.id} (${activeTrip.origin} → ${activeTrip.destination})` : 'None'}
-            </Text>
-          </View>
-        </View>
+        )}
       </ScrollView>
     </Screen>
   );
@@ -347,8 +306,8 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.xxl,
+    paddingTop: spacing.xs,
+    paddingBottom: 40,
   },
   header: {
     flexDirection: 'row',
@@ -356,404 +315,392 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.sm,
   },
-  logo: {
-    width: 120,
-    height: 36,
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  driverIdBadge: {
+  logo: {
+    width: 32,
+    height: 32,
+    marginRight: spacing.xs,
+  },
+  brandTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: colors.navy,
+  },
+  driverIdText: {
     fontSize: 11,
-    fontWeight: 'bold',
-    color: colors.slate,
-    marginTop: 2,
+    color: '#64748B',
+    fontWeight: '500',
   },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
-  iconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  iconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E2E8F0',
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative',
   },
-  badge: {
+  badgeCount: {
     position: 'absolute',
     top: -2,
     right: -2,
     backgroundColor: '#DC2626',
-    borderRadius: 10,
-    minWidth: 18,
-    height: 18,
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: 3,
   },
-  badgeText: {
+  badgeCountText: {
     color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: 'bold',
+    fontSize: 9,
+    fontWeight: '700',
   },
-  avatarBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#EEF2FF',
+  avatarButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#EFF6FF',
     borderWidth: 1,
     borderColor: '#DBEAFE',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  welcomeCard: {
+  greetingRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+    marginTop: spacing.xs,
+  },
+  greetingSub: {
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  driverName: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.navy,
+  },
+  availabilityBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+  },
+  availabilityDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 5,
+  },
+  availabilityText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  breakdownNotice: {
+    backgroundColor: '#FEF2F2',
+    borderRadius: radius.md,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    marginBottom: spacing.md,
+  },
+  breakdownNoticeHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  breakdownBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+  },
+  breakdownBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#B91C1C',
+  },
+  breakdownTime: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  breakdownTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.navy,
+  },
+  breakdownSub: {
+    fontSize: 11,
+    color: '#475569',
+    marginTop: 2,
+    marginBottom: spacing.xs,
+  },
+  breakdownAction: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#DC2626',
+  },
+  sectionHeader: {
+    marginBottom: spacing.xs,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.navy,
+  },
+  currentTripCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: radius.lg,
-    padding: spacing.lg,
+    borderRadius: radius.md,
+    padding: spacing.md,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     marginBottom: spacing.md,
   },
-  welcomeLeft: {
-    flex: 1,
+  tripCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
   },
-  greetingText: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    fontWeight: '500',
-  },
-  driverNameText: {
-    fontSize: 18,
-    fontWeight: 'bold',
+  shipmentId: {
+    fontSize: 15,
+    fontWeight: '800',
     color: colors.navy,
-  },
-  officeText: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    marginTop: 2,
   },
   statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 3,
     borderRadius: radius.pill,
   },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+  statusPillDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
     marginRight: 4,
   },
   statusPillText: {
     fontSize: 10,
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
-  sosCard: {
-    backgroundColor: '#FEF2F2',
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    borderWidth: 1.5,
-    borderColor: '#FCA5A5',
-    marginBottom: spacing.md,
-  },
-  sosHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  sosBadge: {
+  routeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEE2E2',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: radius.xs,
+    backgroundColor: '#F8FAFC',
+    borderRadius: radius.sm,
+    padding: spacing.sm,
+    marginBottom: spacing.sm,
   },
-  sosBadgeText: {
-    fontSize: 9,
-    fontWeight: 'bold',
-    color: '#991B1B',
+  routeCol: {
+    flex: 1,
   },
-  sosStatus: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#991B1B',
-  },
-  sosTitle: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#7F1D1D',
-  },
-  sosDesc: {
-    fontSize: 11,
-    color: '#991B1B',
-    marginTop: 2,
-  },
-  sosAction: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#B91C1C',
-    marginTop: spacing.xs,
-    paddingTop: 4,
-    borderTopWidth: 1,
-    borderTopColor: '#FECACA',
-  },
-  pendingAssignmentCard: {
-    backgroundColor: '#EFF6FF',
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    borderWidth: 1.5,
-    borderColor: '#BFDBFE',
-    marginBottom: spacing.md,
-  },
-  pendingHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  pendingBadge: {
+  routePointRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#DBEAFE',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: radius.xs,
+    marginBottom: 2,
   },
-  pendingBadgeText: {
-    fontSize: 9,
-    fontWeight: 'bold',
-    color: '#1E3A8A',
+  dotOrigin: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#2563EB',
+    marginRight: 4,
   },
-  pendingTime: {
-    fontSize: 11,
-    color: '#1E40AF',
-    fontWeight: '600',
-  },
-  pendingTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#1E3A8A',
-    marginTop: 2,
-  },
-  pendingDesc: {
-    fontSize: 11,
-    color: '#1E40AF',
-    marginTop: 2,
-  },
-  pendingActionRow: {
-    marginTop: spacing.xs,
-    paddingTop: 4,
-    borderTopWidth: 1,
-    borderTopColor: '#DBEAFE',
-  },
-  pendingActionText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#1E40AF',
-  },
-  activeTripCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    borderWidth: 1.5,
-    borderColor: '#BBF7D0',
-    marginBottom: spacing.md,
-  },
-  activeTripHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.xs,
-  },
-  activeTripBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#DCFCE7',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: radius.xs,
-  },
-  activeTripBadgeText: {
-    fontSize: 9,
-    fontWeight: 'bold',
-    color: '#15803D',
-  },
-  activeTripId: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: colors.navy,
-  },
-  routeBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: spacing.xs,
+  dotDest: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#22C55E',
+    marginRight: 4,
   },
   routeCity: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 13,
+    fontWeight: '700',
     color: colors.navy,
   },
-  tripMetaRow: {
+  routeAddress: {
+    fontSize: 10,
+    color: '#64748B',
+  },
+  routeArrowCol: {
+    alignItems: 'center',
+    paddingHorizontal: spacing.xs,
+  },
+  distanceText: {
+    fontSize: 9,
+    color: '#64748B',
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  tripMetaBox: {
+    marginBottom: spacing.sm,
+  },
+  metaRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 4,
+    marginBottom: 3,
   },
-  tripMetaLabel: {
+  metaLabel: {
     fontSize: 11,
-    color: colors.textSecondary,
+    color: '#64748B',
   },
-  tripMetaValue: {
+  metaVal: {
     fontSize: 11,
     fontWeight: '600',
     color: colors.navy,
   },
-  tripButtonsRow: {
+  actionButtonsRow: {
     flexDirection: 'row',
     gap: spacing.sm,
-    marginTop: spacing.sm,
   },
-  openTripBtn: {
+  viewTripButton: {
     flex: 1,
-    backgroundColor: colors.navy,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0F172A',
     borderRadius: radius.md,
     paddingVertical: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
-  openTripBtnText: {
-    color: '#FFFFFF',
+  viewTripButtonText: {
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
-  sosSmallBtn: {
+  sosButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FEE2E2',
-    borderWidth: 1,
-    borderColor: '#FCA5A5',
-    paddingHorizontal: 12,
+    backgroundColor: '#FEF2F2',
     borderRadius: radius.md,
-    gap: 4,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: '#FECDD3',
   },
-  sosSmallBtnText: {
-    fontSize: 11,
-    fontWeight: 'bold',
+  sosButtonText: {
+    fontSize: 12,
+    fontWeight: '800',
     color: '#DC2626',
   },
-  sectionHeaderRow: {
-    marginVertical: spacing.xs,
-  },
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: colors.navy,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-    marginBottom: spacing.md,
-  },
-  statCard: {
-    flex: 1,
+  emptyTripCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: radius.md,
-    padding: spacing.sm,
+    padding: spacing.lg,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
   },
-  statIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  emptyIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#DCFCE7',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 4,
   },
-  statVal: {
-    fontSize: 14,
-    fontWeight: 'bold',
+  emptyTitle: {
+    fontSize: 13,
+    fontWeight: '700',
     color: colors.navy,
   },
-  statLbl: {
-    fontSize: 9,
-    color: colors.textSecondary,
-    textAlign: 'center',
+  emptySub: {
+    fontSize: 11,
+    color: '#64748B',
     marginTop: 2,
+    textAlign: 'center',
   },
-  actionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  actionCard: {
-    width: '48%',
+  pendingCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: radius.md,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#FEF3C7',
+    marginBottom: spacing.sm,
   },
-  actionIconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.xs,
-  },
-  actionTitle: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: colors.navy,
-  },
-  actionSub: {
-    fontSize: 10,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  assetCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginBottom: spacing.lg,
-  },
-  assetCardTitle: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: colors.navy,
-    marginBottom: spacing.xs,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-    paddingBottom: 4,
-  },
-  assetRow: {
+  pendingCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 4,
+    alignItems: 'center',
+    marginBottom: 4,
   },
-  assetLabel: {
+  newBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+  },
+  newBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#B45309',
+  },
+  pendingShipmentId: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.navy,
+  },
+  pendingRouteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  pendingCity: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.navy,
+  },
+  pendingVehicleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  pendingMetaLabel: {
     fontSize: 11,
-    color: colors.textSecondary,
+    color: '#64748B',
+    marginRight: 4,
   },
-  assetValue: {
+  pendingMetaVal: {
     fontSize: 11,
     fontWeight: '600',
     color: colors.navy,
-    maxWidth: '60%',
-    textAlign: 'right',
+  },
+  viewAssignmentBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#EFF6FF',
+    borderRadius: radius.sm,
+    paddingVertical: 6,
+    paddingHorizontal: spacing.sm,
+  },
+  viewAssignmentBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.blue,
   },
 });

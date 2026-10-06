@@ -455,13 +455,7 @@ export const TransportOfficeProvider: React.FC<{ children: React.ReactNode }> = 
           return {
             ...s,
             status: 'IN_TRANSIT',
-            tripStage: 'TRIP_STARTED',
-            timeline: s.timeline.map((item, idx) => {
-              if (idx === 3) {
-                return { ...item, completed: true, time: 'Just now', description: 'Cargo loaded & departed' };
-              }
-              return item;
-            }),
+            tripStage: 'IN_TRANSIT',
           };
         }
         return s;
@@ -469,10 +463,21 @@ export const TransportOfficeProvider: React.FC<{ children: React.ReactNode }> = 
     );
 
     const shipment = shipments.find((s) => s.id === shipmentId);
+    if (shipment?.assignedDriverId) {
+      setDrivers((prev) =>
+        prev.map((d) => (d.id === shipment.assignedDriverId ? { ...d, availability: 'BUSY' } : d))
+      );
+    }
+    if (shipment?.assignedVehicleId) {
+      setVehicles((prev) =>
+        prev.map((v) => (v.id === shipment.assignedVehicleId ? { ...v, status: 'IN_TRIP' } : v))
+      );
+    }
+
     const notif: OfficeNotification = {
       id: `NOTIF-O-${Date.now()}`,
       title: 'Trip Started',
-      message: `Shipment #${shipmentId} (${shipment?.origin} → ${shipment?.destination}) has departed.`,
+      message: `Shipment #${shipmentId} (${shipment?.origin} → ${shipment?.destination}) is in progress on highway.`,
       time: 'Just now',
       type: 'TRIP',
       read: false,
@@ -482,54 +487,30 @@ export const TransportOfficeProvider: React.FC<{ children: React.ReactNode }> = 
   }, [shipments]);
 
   const advanceTripStage = useCallback((shipmentId: string) => {
-    setShipments((prev) =>
-      prev.map((s) => {
-        if (s.id !== shipmentId) return s;
-
-        const currentStage = s.tripStage || 'ASSIGNED';
-        let nextStage: TripStage = 'TRIP_STARTED';
-        let nextStatus = s.status;
-
-        if (currentStage === 'ASSIGNED') {
-          nextStage = 'READY_FOR_PICKUP';
-        } else if (currentStage === 'READY_FOR_PICKUP') {
-          nextStage = 'TRIP_STARTED';
-          nextStatus = 'IN_TRANSIT';
-        } else if (currentStage === 'TRIP_STARTED') {
-          nextStage = 'IN_TRANSIT';
-          nextStatus = 'IN_TRANSIT';
-        } else if (currentStage === 'IN_TRANSIT') {
-          nextStage = 'ARRIVED';
-          nextStatus = 'IN_TRANSIT';
-        } else if (currentStage === 'ARRIVED') {
-          nextStage = 'DELIVERED';
-          nextStatus = 'DELIVERED';
-        }
-
-        const updatedTimeline = s.timeline.map((item) => {
-          if (nextStage === 'IN_TRANSIT' && item.title === 'In Transit') {
-            return { ...item, completed: true, time: 'Just now', description: 'On highway NH-44' };
-          }
-          if (nextStage === 'DELIVERED' && item.title === 'Delivered') {
-            return { ...item, completed: true, time: 'Just now', description: 'Customer delivery confirmed' };
-          }
-          return item;
-        });
-
-        return {
-          ...s,
-          tripStage: nextStage,
-          status: nextStatus,
-          timeline: updatedTimeline,
-        };
-      })
-    );
-
     const s = shipments.find((item) => item.id === shipmentId);
     if (!s) return;
 
-    if (s.tripStage === 'ARRIVED') {
-      // Delivered! Release driver and vehicle
+    if (s.status === 'ACCEPTED') {
+      startTrip(shipmentId);
+      return;
+    }
+
+    if (s.status === 'IN_TRANSIT') {
+      // Advance to DELIVERED
+      setShipments((prev) =>
+        prev.map((item) => {
+          if (item.id === shipmentId) {
+            return {
+              ...item,
+              status: 'DELIVERED',
+              tripStage: 'DELIVERED',
+            };
+          }
+          return item;
+        })
+      );
+
+      // Release driver and vehicle
       if (s.assignedDriverId) {
         setDrivers((prev) =>
           prev.map((d) =>
@@ -545,6 +526,7 @@ export const TransportOfficeProvider: React.FC<{ children: React.ReactNode }> = 
           )
         );
       }
+
       if (s.assignedVehicleId) {
         setVehicles((prev) =>
           prev.map((v) =>
@@ -585,7 +567,7 @@ export const TransportOfficeProvider: React.FC<{ children: React.ReactNode }> = 
       };
       setOfficeNotifications((prev) => [notif, ...prev]);
     }
-  }, [shipments, drivers, vehicles]);
+  }, [shipments, drivers, vehicles, startTrip]);
 
   const reportBreakdown = useCallback((input: ReportBreakdownInput) => {
     const driver = drivers.find((d) => d.id === input.driverId);
