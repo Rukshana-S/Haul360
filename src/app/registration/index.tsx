@@ -27,7 +27,7 @@ export default function RegistrationRoleSelectionScreen() {
       title: 'Driver',
       iconName: 'car-sport-outline',
       description: 'Register as an individual driver to find loads and manage trips.',
-      route: '/registration/driver'
+      route: '/registration/driver-type'
     },
     {
       id: 'Organization',

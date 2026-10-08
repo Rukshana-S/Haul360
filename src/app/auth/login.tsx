@@ -64,11 +64,31 @@ export default function LoginScreen() {
       return;
     }
 
-    // 2. Role: Driver (Transport Office Driver)
-    if (displayRole === 'Driver') {
+    // 2. Role: Independent Driver
+    if (displayRole === 'Driver' || displayRole === 'Independent Driver') {
       const identifier = loginMethod === 'driverId' ? driverIdentifier.trim() : (loginMethod === 'mobile' ? mobileNumber : emailAddress);
       if (!identifier) {
-        setErrorMessage('Please enter your Driver ID or registered phone number.');
+        setErrorMessage('Please enter your Driver ID or registered mobile number.');
+        return;
+      }
+      if (!password) {
+        setErrorMessage('Please enter your password.');
+        return;
+      }
+
+      setIsLoading(true);
+      setTimeout(() => {
+        setIsLoading(false);
+        router.replace('/driver' as any);
+      }, 500);
+      return;
+    }
+
+    // 2b. Role: Transport Office Driver
+    if (displayRole === 'Office Driver') {
+      const identifier = loginMethod === 'driverId' ? driverIdentifier.trim() : mobileNumber.trim();
+      if (!identifier) {
+        setErrorMessage('Please enter your Office Driver ID.');
         return;
       }
       if (!password) {
@@ -87,7 +107,7 @@ export default function LoginScreen() {
             router.replace('/office-driver' as any);
           }
         } else {
-          setErrorMessage(res.error || 'Invalid credentials.');
+          setErrorMessage(res.error || 'Invalid credentials provided by Transport Office.');
         }
       }, 500);
       return;
@@ -166,7 +186,13 @@ export default function LoginScreen() {
 
           <View style={styles.titleSection}>
             <Text style={styles.title}>Welcome Back</Text>
-            <Text style={styles.subtitle}>Log in to your Haul360 freight network account</Text>
+            <Text style={styles.subtitle}>
+              {displayRole === 'Driver'
+                ? 'Independent Driver Login'
+                : displayRole === 'Office Driver'
+                ? 'Transport Office Driver Login'
+                : 'Log in to your Haul360 freight network account'}
+            </Text>
           </View>
 
           {errorMessage && (
@@ -244,7 +270,13 @@ export default function LoginScreen() {
                   : 'Email Address'}
               </Text>
               <Text style={styles.inputSubLabel}>
-                {displayRole === 'Transport Office' ? 'Office Dispatch' : displayRole === 'Driver' ? 'Office Assigned' : 'Mechanic Service'}
+                {displayRole === 'Transport Office'
+                  ? 'Office Dispatch'
+                  : displayRole === 'Office Driver'
+                  ? 'Office Fleet Driver ID'
+                  : displayRole === 'Driver'
+                  ? 'Independent Driver'
+                  : 'Mechanic Service'}
               </Text>
             </View>
 
@@ -294,7 +326,7 @@ export default function LoginScreen() {
 
             <View style={[styles.inputHeaderRow, { marginTop: spacing.md }]}>
               <Text style={styles.inputLabel}>
-                {displayRole === 'Driver' ? 'Password / Temporary Password' : 'Security Password'}
+                {displayRole === 'Office Driver' ? 'Password / Temporary Password' : 'Password'}
               </Text>
               <TouchableOpacity onPress={navigateToForgot}>
                 <Text style={styles.forgotText}>Forgot Password?</Text>
@@ -307,7 +339,7 @@ export default function LoginScreen() {
                 style={styles.textInput}
                 value={password}
                 onChangeText={setPassword}
-                placeholder={displayRole === 'Driver' ? 'Enter password (e.g. H360@5821)' : 'Enter password'}
+                placeholder="Enter password"
                 placeholderTextColor="#94A3B8"
                 secureTextEntry={!showPassword}
               />
@@ -367,12 +399,25 @@ export default function LoginScreen() {
           <View style={styles.footer}>
             {displayRole === 'Driver' ? (
               <View style={{ alignItems: 'center' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={styles.footerText}>New Independent Driver? </Text>
+                  <TouchableOpacity onPress={() => router.push('/registration/driver-type' as any)}>
+                    <Text style={[styles.footerLink, { color: colors.blue, fontWeight: '700' }]}>
+                      Register as Independent Driver
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : displayRole === 'Office Driver' ? (
+              <View style={{ alignItems: 'center' }}>
                 <Text style={[styles.footerText, { textAlign: 'center', marginBottom: 4 }]}>
-                  Driver accounts are registered by your Transport Office.
+                  Office driver credentials are created and managed by your Transport Office.
                 </Text>
-                <Text style={[styles.footerText, { fontSize: 12, color: colors.blue }]}>
-                  Contact your fleet dispatch manager for temporary login credentials.
-                </Text>
+                <TouchableOpacity onPress={() => router.push('/registration/driver-type' as any)}>
+                  <Text style={[styles.footerLink, { color: colors.slate, fontSize: 13 }]}>
+                    Self-Employed? Register as Independent Driver →
+                  </Text>
+                </TouchableOpacity>
               </View>
             ) : displayRole === 'Transport Office' ? (
               <>
