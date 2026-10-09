@@ -11,14 +11,13 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/components/ui/Screen';
 import { colors } from '@/theme/colors';
-import { typography } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
 import { brand } from '@/constants/brand';
 import { useTransportOffice } from '@/context/TransportOfficeContext';
 
 export default function OfficeDriverProfileScreen() {
-  const { currentDriverUser, shipments, vehicles, office } = useTransportOffice();
+  const { currentDriverUser, shipments, vehicles, office, driverFinancials } = useTransportOffice();
 
   const driver = currentDriverUser;
   const driverId = driver?.id || 'H360-D-1042';
@@ -70,19 +69,19 @@ export default function OfficeDriverProfileScreen() {
           <View style={styles.officeBadge}>
             <Ionicons name="business" size={12} color={colors.navy} style={{ marginRight: 4 }} />
             <Text style={styles.officeBadgeText}>
-              Affiliated Hub: {office.name}
+              Transport Office: {office.name}
             </Text>
           </View>
 
           <View style={styles.statsRow}>
             <View style={styles.statBox}>
-              <Text style={styles.statNumber}>{driver?.completedTripsCount || 142}</Text>
-              <Text style={styles.statLabel}>Completed Hauls</Text>
+              <Text style={styles.statNumber}>{driver?.completedTripsCount || 18}</Text>
+              <Text style={styles.statLabel}>Completed Trips</Text>
             </View>
             <View style={styles.statDiv} />
             <View style={styles.statBox}>
               <Text style={styles.statNumber}>★ {driver?.rating.toFixed(1) || '4.9'}</Text>
-              <Text style={styles.statLabel}>Rating</Text>
+              <Text style={styles.statLabel}>Driver Rating</Text>
             </View>
             <View style={styles.statDiv} />
             <View style={styles.statBox}>
@@ -92,28 +91,61 @@ export default function OfficeDriverProfileScreen() {
           </View>
         </View>
 
-        {/* CURRENT ASSIGNMENT (NEVER PERMANENT) */}
+        {/* READ-ONLY OPERATIONAL INFORMATION */}
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Active Fleet Assignment</Text>
+          <Text style={styles.sectionTitle}>Operational Information</Text>
 
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Current Vehicle:</Text>
-            <Text style={styles.infoVal}>
-              {assignedVehicle ? `${assignedVehicle.vehicleNumber} (${assignedVehicle.vehicleType})` : 'None (Available in yard)'}
-            </Text>
+            <Text style={styles.infoLabel}>Transport Office:</Text>
+            <Text style={styles.infoVal}>{office.name}</Text>
           </View>
 
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Current Shipment:</Text>
+            <Text style={styles.infoLabel}>Driver Management Status:</Text>
+            <View style={styles.badgePillGreen}>
+              <Text style={styles.badgePillGreenText}>
+                {driver?.isActive !== false ? 'ACTIVE' : 'INACTIVE'}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Operational Availability:</Text>
+            <View style={styles.badgePillBlue}>
+              <Text style={styles.badgePillBlueText}>{driver?.availability || 'AVAILABLE'}</Text>
+            </View>
+          </View>
+
+          <View style={[styles.infoRow, { borderBottomWidth: 0 }]}>
+            <Text style={styles.infoLabel}>Assigned Vehicle:</Text>
             <Text style={styles.infoVal}>
-              {activeTrip ? `#${activeTrip.id} (${activeTrip.origin} → ${activeTrip.destination})` : 'None'}
+              {assignedVehicle ? `${assignedVehicle.vehicleNumber} (${assignedVehicle.vehicleType})` : 'None (In yard)'}
             </Text>
           </View>
         </View>
 
-        {/* PERSONAL & LICENSE COMPLIANCE */}
+        {/* PERSONAL & CONTACT INFORMATION WITH EDIT PROFILE BUTTON */}
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Personal & License Verification</Text>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Personal & Contact Details</Text>
+            <TouchableOpacity
+              style={styles.editProfileBtn}
+              onPress={() => router.push('/office-driver/edit-profile' as any)}
+            >
+              <Ionicons name="create-outline" size={14} color={colors.blue} />
+              <Text style={styles.editLink}>Edit Profile</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Full Name:</Text>
+            <Text style={styles.infoVal}>{driver?.name || 'Kumar S.'}</Text>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Driver ID:</Text>
+            <Text style={styles.infoVal}>{driverId}</Text>
+          </View>
 
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Mobile Number:</Text>
@@ -121,8 +153,13 @@ export default function OfficeDriverProfileScreen() {
           </View>
 
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Email Address:</Text>
+            <Text style={styles.infoLabel}>Email:</Text>
             <Text style={styles.infoVal}>{driver?.email || 'kumar.driver@haul360.com'}</Text>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Date of Birth:</Text>
+            <Text style={styles.infoVal}>{driver?.dateOfBirth || '1992-05-14'}</Text>
           </View>
 
           <View style={styles.infoRow}>
@@ -131,21 +168,60 @@ export default function OfficeDriverProfileScreen() {
           </View>
 
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>License Validity:</Text>
+            <Text style={styles.infoLabel}>License Expiry:</Text>
             <Text style={styles.infoVal}>{driver?.licenseExpiry || '2028-11-20'}</Text>
           </View>
 
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Document Verification:</Text>
-            <View style={styles.verifiedBadge}>
-              <Ionicons name="checkmark-circle" size={12} color={colors.green} />
-              <Text style={styles.verifiedText}>OFFICE VERIFIED</Text>
-            </View>
+            <Text style={styles.infoLabel}>Address:</Text>
+            <Text style={styles.infoVal}>{driver?.address || '14, Cross Cut Road, Gandhipuram'}</Text>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>City:</Text>
+            <Text style={styles.infoVal}>{driver?.city || 'Coimbatore'}</Text>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>State:</Text>
+            <Text style={styles.infoVal}>{driver?.state || 'Tamil Nadu'}</Text>
+          </View>
+
+          <View style={[styles.infoRow, { borderBottomWidth: 0 }]}>
+            <Text style={styles.infoLabel}>Pincode:</Text>
+            <Text style={styles.infoVal}>{driver?.pincode || '641012'}</Text>
           </View>
         </View>
 
-        {/* MENU OPTIONS */}
+        {/* DRIVER SERVICES & NAVIGATION MENU */}
         <View style={styles.menuCard}>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => router.push('/office-driver/edit-profile' as any)}
+          >
+            <View style={styles.menuLeft}>
+              <Ionicons name="person-outline" size={20} color={colors.navy} style={{ marginRight: 12 }} />
+              <Text style={styles.menuText}>Edit Profile</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => router.push('/office-driver/earnings' as any)}
+          >
+            <View style={styles.menuLeft}>
+              <Ionicons name="cash-outline" size={20} color={colors.navy} style={{ marginRight: 12 }} />
+              <View>
+                <Text style={styles.menuText}>Driver Earnings</Text>
+                <Text style={styles.menuSubText}>
+                  ₹{driverFinancials.totalEarnings.toLocaleString('en-IN')} Total
+                </Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+          </TouchableOpacity>
+
           <TouchableOpacity
             style={styles.menuItem}
             onPress={() => router.push('/office-driver/trips/history' as any)}
@@ -174,7 +250,7 @@ export default function OfficeDriverProfileScreen() {
           >
             <View style={styles.menuLeft}>
               <Ionicons name="key-outline" size={20} color={colors.navy} style={{ marginRight: 12 }} />
-              <Text style={styles.menuText}>Change Driver Password</Text>
+              <Text style={styles.menuText}>Change Password</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
           </TouchableOpacity>
@@ -184,8 +260,8 @@ export default function OfficeDriverProfileScreen() {
             onPress={() => router.push('/office-driver/settings' as any)}
           >
             <View style={styles.menuLeft}>
-              <Ionicons name="shield-outline" size={20} color={colors.navy} style={{ marginRight: 12 }} />
-              <Text style={styles.menuText}>Driver Security & App Settings</Text>
+              <Ionicons name="help-circle-outline" size={20} color={colors.navy} style={{ marginRight: 12 }} />
+              <Text style={styles.menuText}>Help & Support</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
           </TouchableOpacity>
@@ -326,19 +402,38 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
     marginBottom: spacing.md,
   },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: colors.navy,
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
     paddingBottom: spacing.xs,
   },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: colors.navy,
+    marginBottom: spacing.xs,
+  },
+  editProfileBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  editLink: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: colors.blue,
+  },
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 5,
+    alignItems: 'center',
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F8FAFC',
   },
   infoLabel: {
     fontSize: 12,
@@ -351,19 +446,27 @@ const styles = StyleSheet.create({
     maxWidth: '60%',
     textAlign: 'right',
   },
-  verifiedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  badgePillGreen: {
     backgroundColor: '#DCFCE7',
-    paddingHorizontal: 6,
+    paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: radius.pill,
   },
-  verifiedText: {
-    fontSize: 9,
-    fontWeight: 'bold',
-    color: colors.green,
-    marginLeft: 3,
+  badgePillGreenText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#15803D',
+  },
+  badgePillBlue: {
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+  },
+  badgePillBlueText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#1D4ED8',
   },
   menuCard: {
     backgroundColor: '#FFFFFF',
@@ -389,6 +492,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: colors.navy,
+  },
+  menuSubText: {
+    fontSize: 11,
+    color: '#15803D',
+    fontWeight: '700',
+    marginTop: 1,
   },
   brandingFooter: {
     alignItems: 'center',

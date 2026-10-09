@@ -12,6 +12,15 @@ import {
   BreakdownIssueType,
   BreakdownStatus,
   TripStage,
+  OfficeFinancials,
+  EarningTripItem,
+  PassbookTransaction,
+  RewardAccount,
+  VehicleFastag,
+  FastagTransaction,
+  DriverFinancials,
+  DriverTripEarning,
+  MechanicReview,
   initialTransportOffice,
   initialOfficeDrivers,
   initialOfficeVehicles,
@@ -21,9 +30,16 @@ import {
   initialOfficeNotifications,
   initialDriverNotifications,
   initialHistoryItems,
+  initialOfficeFinancials,
+  initialEarningTrips,
+  initialPassbookTransactions,
+  initialRewardAccount,
+  initialDriverFinancials,
+  initialDriverTripEarnings,
+  initialMechanicReviews,
 } from '@/constants/transportOfficeMockData';
 
-interface AddDriverInput {
+export interface AddDriverInput {
   name: string;
   phone: string;
   email: string;
@@ -31,21 +47,29 @@ interface AddDriverInput {
   address: string;
   licenseNumber: string;
   licenseExpiry: string;
+  licenseStatus?: 'PENDING' | 'VERIFIED' | 'REJECTED' | 'EXPIRING';
+  aadhaarNumber?: string;
+  aadhaarStatus?: 'PENDING' | 'VERIFIED' | 'REJECTED' | 'EXPIRING';
+  panNumber?: string;
+  panStatus?: 'PENDING' | 'VERIFIED' | 'REJECTED' | 'EXPIRING';
   documentStatus?: 'VERIFIED' | 'PENDING' | 'EXPIRED';
 }
 
-interface AddVehicleInput {
+export interface AddVehicleInput {
   vehicleNumber: string;
   vehicleType: string;
   model: string;
   capacityKg: number;
   fuelType: 'Diesel' | 'CNG' | 'Electric';
   rcNumber: string;
-  insuranceStatus: 'VALID' | 'EXPIRING_SOON' | 'EXPIRED';
+  rcStatus?: 'PENDING' | 'VERIFIED' | 'REJECTED' | 'EXPIRING';
+  insuranceNumber?: string;
+  insuranceExpiry?: string;
+  insuranceStatus: 'VALID' | 'EXPIRING_SOON' | 'EXPIRED' | 'PENDING' | 'VERIFIED' | 'REJECTED';
   permitStatus: 'NATIONAL_PERMIT' | 'STATE_PERMIT';
 }
 
-interface ReportBreakdownInput {
+export interface ReportBreakdownInput {
   driverId: string;
   vehicleId: string;
   shipmentId: string;
@@ -64,6 +88,13 @@ interface TransportOfficeContextType {
   officeNotifications: OfficeNotification[];
   driverNotifications: DriverNotification[];
   historyItems: HistoryItem[];
+  financials: OfficeFinancials;
+  earningTrips: EarningTripItem[];
+  passbook: PassbookTransaction[];
+  rewards: RewardAccount;
+  driverFinancials: DriverFinancials;
+  driverTripEarnings: DriverTripEarning[];
+  mechanicReviews: MechanicReview[];
   currentDriverUser: OfficeDriver | null;
 
   // Office Actions
@@ -76,6 +107,17 @@ interface TransportOfficeContextType {
   inactivateVehicle: (vehicleId: string) => { success: boolean; error?: string };
   activateVehicle: (vehicleId: string) => { success: boolean; error?: string };
   markVehicleMaintenance: (vehicleId: string, isMaintenance: boolean) => void;
+  sendShipmentRequest: (shipmentId: string) => void;
+  simulateOrgResponse: (shipmentId: string, accept: boolean, reason?: string) => void;
+  placeBid: (
+    shipmentId: string,
+    bidAmount: number,
+    isReturnLoad?: boolean,
+    originalShipmentId?: string
+  ) => { success: boolean; error?: string };
+  cancelBid: (shipmentId: string) => void;
+  simulateOrgBidResponse: (shipmentId: string, accept: boolean, reason?: string) => void;
+  getMatchingReturnLoads: (originalShipmentId: string) => OfficeShipment[];
   assignDriverAndVehicle: (
     shipmentId: string,
     driverId: string,
@@ -85,17 +127,23 @@ interface TransportOfficeContextType {
   progressMechanicStatus: (breakdownId: string) => void;
   replaceVehicleForBreakdown: (breakdownId: string, newVehicleId: string) => { success: boolean; error?: string };
   markOfficeNotificationRead: (id: string) => void;
+  rechargeVehicleFastag: (vehicleId: string, amount: number) => { success: boolean; newBalance?: number; error?: string };
+  deductVehicleToll: (vehicleId: string, amount: number, location: string) => { success: boolean; newBalance?: number; error?: string };
+  withdrawOfficeFunds: (amount: number, bankMethod?: string) => { success: boolean; error?: string };
 
   // Driver Actions
   setCurrentDriverUser: (driver: OfficeDriver | null) => void;
   loginDriverMock: (identifier: string, pass: string) => { success: boolean; driver?: OfficeDriver; isFirstLogin?: boolean; error?: string };
   updateDriverPassword: (driverId: string, newPass: string) => boolean;
+  updateDriverProfile: (driverId: string, updated: Partial<OfficeDriver>) => { success: boolean; error?: string };
   acceptAssignment: (shipmentId: string) => void;
   declineAssignment: (shipmentId: string, reason: string) => void;
   startTrip: (shipmentId: string) => void;
   advanceTripStage: (shipmentId: string) => void;
+  advanceShipmentTrackingStep: (shipmentId: string) => void;
   reportBreakdown: (input: ReportBreakdownInput) => BreakdownIncident;
   resumeTripAfterBreakdown: (breakdownId: string) => void;
+  rateMechanicService: (breakdownId: string, rating: number, comment?: string) => { success: boolean; error?: string };
   markDriverNotificationRead: (id: string) => void;
 
   // Getters
@@ -104,6 +152,7 @@ interface TransportOfficeContextType {
   getShipmentById: (id: string) => OfficeShipment | undefined;
   getBreakdownById: (id: string) => BreakdownIncident | undefined;
   getMechanicById: (id: string) => MockNearbyMechanic | undefined;
+  getVehicleFastag: (vehicleId: string) => VehicleFastag | undefined;
 }
 
 const TransportOfficeContext = createContext<TransportOfficeContextType | undefined>(undefined);
@@ -118,6 +167,13 @@ export const TransportOfficeProvider: React.FC<{ children: React.ReactNode }> = 
   const [officeNotifications, setOfficeNotifications] = useState<OfficeNotification[]>(initialOfficeNotifications);
   const [driverNotifications, setDriverNotifications] = useState<DriverNotification[]>(initialDriverNotifications);
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>(initialHistoryItems);
+  const [financials, setFinancials] = useState<OfficeFinancials>(initialOfficeFinancials);
+  const [earningTrips, setEarningTrips] = useState<EarningTripItem[]>(initialEarningTrips);
+  const [passbook, setPassbook] = useState<PassbookTransaction[]>(initialPassbookTransactions);
+  const [rewards, setRewards] = useState<RewardAccount>(initialRewardAccount);
+  const [driverFinancials, setDriverFinancials] = useState<DriverFinancials>(initialDriverFinancials);
+  const [driverTripEarnings, setDriverTripEarnings] = useState<DriverTripEarning[]>(initialDriverTripEarnings);
+  const [mechanicReviews, setMechanicReviews] = useState<MechanicReview[]>(initialMechanicReviews);
 
   // Active simulated driver session
   const [currentDriverUser, setCurrentDriverUserState] = useState<OfficeDriver | null>(() => {
@@ -132,6 +188,7 @@ export const TransportOfficeProvider: React.FC<{ children: React.ReactNode }> = 
     setOffice((prev) => ({ ...prev, ...updated }));
   }, []);
 
+  // 1. Add Driver (No vehicle assignment)
   const addDriver = useCallback((input: AddDriverInput) => {
     const nextIndex = drivers.length + 1042;
     const driverId = `H360-D-${nextIndex}`;
@@ -148,6 +205,11 @@ export const TransportOfficeProvider: React.FC<{ children: React.ReactNode }> = 
       address: input.address,
       licenseNumber: input.licenseNumber,
       licenseExpiry: input.licenseExpiry,
+      licenseStatus: input.licenseStatus || 'VERIFIED',
+      aadhaarNumber: input.aadhaarNumber || 'XXXX-XXXX-8822',
+      aadhaarStatus: input.aadhaarStatus || 'VERIFIED',
+      panNumber: input.panNumber || 'ABCDE9901Z',
+      panStatus: input.panStatus || 'VERIFIED',
       documentStatus: input.documentStatus || 'VERIFIED',
       isFirstLogin: true,
       tempPassword,
@@ -169,7 +231,7 @@ export const TransportOfficeProvider: React.FC<{ children: React.ReactNode }> = 
     const newNotif: OfficeNotification = {
       id: `NOTIF-O-${Date.now()}`,
       title: 'Driver Account Created',
-      message: `${newDriver.name} added (ID: ${driverId}). Temporary password generated.`,
+      message: `${newDriver.name} added (ID: ${driverId}). Documents verified. Temporary password generated.`,
       time: 'Just now',
       type: 'SYSTEM',
       read: false,
@@ -191,7 +253,7 @@ export const TransportOfficeProvider: React.FC<{ children: React.ReactNode }> = 
     }
 
     setDrivers((prev) =>
-      prev.map((d) => (d.id === driverId ? { ...d, isActive: false } : d))
+      prev.map((d) => (d.id === driverId ? { ...d, isActive: false, availability: 'OFFLINE' } : d))
     );
 
     const notif: OfficeNotification = {
@@ -208,63 +270,45 @@ export const TransportOfficeProvider: React.FC<{ children: React.ReactNode }> = 
   }, [drivers]);
 
   const activateDriver = useCallback((driverId: string) => {
-    const driver = drivers.find((d) => d.id === driverId);
-    if (!driver) return { success: false, error: 'Driver not found.' };
-
     setDrivers((prev) =>
-      prev.map((d) => (d.id === driverId ? { ...d, isActive: true } : d))
+      prev.map((d) => (d.id === driverId ? { ...d, isActive: true, availability: 'AVAILABLE' } : d))
     );
-
-    const notif: OfficeNotification = {
-      id: `NOTIF-O-${Date.now()}`,
-      title: 'Driver Activated',
-      message: `${driver.name} (ID: ${driver.id}) is now active and available for shipment dispatch.`,
-      time: 'Just now',
-      type: 'SYSTEM',
-      read: false,
-    };
-    setOfficeNotifications((prev) => [notif, ...prev]);
-
     return { success: true };
-  }, [drivers]);
+  }, []);
 
-  const rateDriver = useCallback((driverId: string, ratingScore: number, feedback?: string) => {
-    const driver = drivers.find((d) => d.id === driverId);
-    if (!driver) return;
-
-    const currentCount = driver.ratingCount || 0;
-    const currentRating = driver.rating || 0;
-    const newRating = currentCount === 0
-      ? Number(ratingScore.toFixed(1))
-      : Number((((currentRating * currentCount) + ratingScore) / (currentCount + 1)).toFixed(1));
-    const newCount = currentCount + 1;
-
+  const rateDriver = useCallback((driverId: string, rating: number, feedback?: string) => {
     setDrivers((prev) =>
       prev.map((d) => {
         if (d.id === driverId) {
+          const currentCount = d.ratingCount || 0;
+          const currentRating = d.rating || 5;
+          const newCount = currentCount + 1;
+          const newAvg = Number(((currentRating * currentCount + rating) / newCount).toFixed(2));
           return {
             ...d,
-            rating: newRating,
+            rating: newAvg,
             ratingCount: newCount,
-            lastRatedDate: 'Today',
+            lastRatedDate: 'Just now',
           };
         }
         return d;
       })
     );
 
-    const notif: OfficeNotification = {
-      id: `NOTIF-O-${Date.now()}`,
-      title: 'Driver Rating Submitted',
-      message: `Rated ${driver.name} with ${ratingScore} ★.${feedback ? ` Feedback: "${feedback}"` : ''}`,
-      time: 'Just now',
-      type: 'SYSTEM',
-      read: false,
-      targetId: driver.id,
-    };
-    setOfficeNotifications((prev) => [notif, ...prev]);
-  }, [drivers]);
+    if (feedback) {
+      const notif: OfficeNotification = {
+        id: `NOTIF-O-${Date.now()}`,
+        title: 'Driver Rating Submitted',
+        message: `Driver rated ${rating}★. Feedback: "${feedback}"`,
+        time: 'Just now',
+        type: 'SYSTEM',
+        read: false,
+      };
+      setOfficeNotifications((prev) => [notif, ...prev]);
+    }
+  }, []);
 
+  // 2. Add Vehicle
   const addVehicle = useCallback((input: AddVehicleInput) => {
     const nextIndex = vehicles.length + 1;
     const vehicleId = `VEH-${String(nextIndex).padStart(3, '0')}`;
@@ -278,13 +322,16 @@ export const TransportOfficeProvider: React.FC<{ children: React.ReactNode }> = 
       capacityKg: input.capacityKg,
       fuelType: input.fuelType,
       rcNumber: input.rcNumber.toUpperCase().trim(),
-      insuranceStatus: input.insuranceStatus,
+      rcStatus: input.rcStatus || 'VERIFIED',
+      insuranceNumber: input.insuranceNumber || `POL-${Date.now().toString().slice(-6)}`,
+      insuranceExpiry: input.insuranceExpiry || '2027-12-31',
+      insuranceStatus: input.insuranceStatus || 'VALID',
       permitStatus: input.permitStatus,
       isActive: true,
       status: 'AVAILABLE',
       currentDriverId: null,
       currentShipmentId: null,
-      lastMaintenanceDate: 'Inspection Valid',
+      lastMaintenanceDate: 'Not serviced yet',
     };
 
     setVehicles((prev) => [newVehicle, ...prev]);
@@ -292,7 +339,7 @@ export const TransportOfficeProvider: React.FC<{ children: React.ReactNode }> = 
     const newNotif: OfficeNotification = {
       id: `NOTIF-O-${Date.now()}`,
       title: 'Vehicle Added to Fleet',
-      message: `${newVehicle.vehicleNumber} (${newVehicle.vehicleType}) registered successfully.`,
+      message: `Commercial Vehicle ${newVehicle.vehicleNumber} registered with payload capacity of ${(newVehicle.capacityKg / 1000).toFixed(1)}T.`,
       time: 'Just now',
       type: 'SYSTEM',
       read: false,
@@ -304,23 +351,23 @@ export const TransportOfficeProvider: React.FC<{ children: React.ReactNode }> = 
 
   const inactivateVehicle = useCallback((vehicleId: string) => {
     const vehicle = vehicles.find((v) => v.id === vehicleId);
-    if (!vehicle) return { success: false, error: 'Vehicle not found.' };
+    if (!vehicle) return { success: false, error: 'Vehicle asset not found.' };
 
     if (vehicle.status === 'IN_TRIP' || vehicle.status === 'ASSIGNED' || vehicle.currentShipmentId) {
       return {
         success: false,
-        error: `Vehicle ${vehicle.vehicleNumber} is currently assigned to an active shipment. Complete or replace vehicle before inactivating.`,
+        error: `Vehicle ${vehicle.vehicleNumber} is currently assigned to an active trip. Complete trip before deactivating.`,
       };
     }
 
     setVehicles((prev) =>
-      prev.map((v) => (v.id === vehicleId ? { ...v, isActive: false } : v))
+      prev.map((v) => (v.id === vehicleId ? { ...v, isActive: false, status: 'OFFLINE' } : v))
     );
 
     const notif: OfficeNotification = {
       id: `NOTIF-O-${Date.now()}`,
       title: 'Vehicle Deactivated',
-      message: `${vehicle.vehicleNumber} (${vehicle.vehicleType}) has been soft-deactivated and excluded from assignments.`,
+      message: `Vehicle ${vehicle.vehicleNumber} has been soft-deactivated and excluded from new assignments.`,
       time: 'Just now',
       type: 'SYSTEM',
       read: false,
@@ -331,73 +378,375 @@ export const TransportOfficeProvider: React.FC<{ children: React.ReactNode }> = 
   }, [vehicles]);
 
   const activateVehicle = useCallback((vehicleId: string) => {
-    const vehicle = vehicles.find((v) => v.id === vehicleId);
-    if (!vehicle) return { success: false, error: 'Vehicle not found.' };
-
     setVehicles((prev) =>
-      prev.map((v) => (v.id === vehicleId ? { ...v, isActive: true } : v))
+      prev.map((v) => (v.id === vehicleId ? { ...v, isActive: true, status: 'AVAILABLE' } : v))
     );
+    return { success: true };
+  }, []);
+
+  const markVehicleMaintenance = useCallback((vehicleId: string, isMaintenance: boolean) => {
+    setVehicles((prev) =>
+      prev.map((v) =>
+        v.id === vehicleId
+          ? {
+              ...v,
+              status: isMaintenance ? 'MAINTENANCE' : 'AVAILABLE',
+              lastMaintenanceDate: isMaintenance ? 'In Workshop' : 'Just inspected',
+            }
+          : v
+      )
+    );
+  }, []);
+
+  // 3. Send Shipment Request to Organization
+  const sendShipmentRequest = useCallback((shipmentId: string) => {
+    setShipments((prev) =>
+      prev.map((s) => {
+        if (s.id === shipmentId) {
+          return {
+            ...s,
+            requestStatus: 'REQUEST_SENT',
+            requestSentAt: 'Just now',
+            timeline: [
+              ...s.timeline,
+              {
+                title: 'Request Sent to Organization',
+                time: 'Just now',
+                completed: true,
+                description: `Sent haul request to ${s.organizationName}`,
+              },
+            ],
+          };
+        }
+        return s;
+      })
+    );
+
+    const shipment = shipments.find((s) => s.id === shipmentId);
+    if (shipment) {
+      const notif: OfficeNotification = {
+        id: `NOTIF-O-${Date.now()}`,
+        title: 'Haul Request Sent',
+        message: `Request sent to ${shipment.organizationName} for Shipment #${shipment.id} (${shipment.origin} → ${shipment.destination}). Waiting for organization approval.`,
+        time: 'Just now',
+        type: 'REQUEST',
+        read: false,
+        targetId: shipment.id,
+      };
+      setOfficeNotifications((prev) => [notif, ...prev]);
+    }
+  }, [shipments]);
+
+  // 4. Simulate Organization Response (Accept / Reject)
+  const simulateOrgResponse = useCallback((shipmentId: string, accept: boolean, reason?: string) => {
+    setShipments((prev) =>
+      prev.map((s) => {
+        if (s.id === shipmentId) {
+          return {
+            ...s,
+            requestStatus: accept ? 'ACCEPTED' : 'REJECTED',
+            responseReceivedAt: 'Just now',
+            rejectionReason: accept ? undefined : (reason || 'Capacity not required by shipper at this time.'),
+            timeline: [
+              ...s.timeline,
+              {
+                title: accept ? 'Organization Approved Request' : 'Organization Declined Request',
+                time: 'Just now',
+                completed: true,
+                description: accept
+                  ? `${s.organizationName} approved your haul allocation. You can now assign a driver and vehicle.`
+                  : `${s.organizationName} declined this request.`,
+              },
+            ],
+          };
+        }
+        return s;
+      })
+    );
+
+    const shipment = shipments.find((s) => s.id === shipmentId);
+    if (shipment) {
+      const notif: OfficeNotification = {
+        id: `NOTIF-O-${Date.now()}`,
+        title: accept ? 'Shipment Request Approved' : 'Shipment Request Declined',
+        message: accept
+          ? `${shipment.organizationName} approved Shipment #${shipment.id}. Ready for Driver and Vehicle assignment.`
+          : `${shipment.organizationName} declined request for #${shipment.id}.`,
+        time: 'Just now',
+        type: 'REQUEST',
+        read: false,
+        targetId: shipment.id,
+      };
+      setOfficeNotifications((prev) => [notif, ...prev]);
+    }
+  }, [shipments]);
+
+  // 4b. Place Bid on Normal Shipment or Return Load
+  const placeBid = useCallback((
+    shipmentId: string,
+    bidAmount: number,
+    isReturnLoad?: boolean,
+    originalShipmentId?: string
+  ) => {
+    const target = shipments.find((s) => s.id === shipmentId);
+    if (!target) return { success: false, error: 'Shipment not found.' };
+
+    const originalShipment = originalShipmentId ? shipments.find((s) => s.id === originalShipmentId) : null;
+
+    setShipments((prev) =>
+      prev.map((s) => {
+        if (s.id === shipmentId) {
+          return {
+            ...s,
+            currentBidAmount: bidAmount,
+            bidStatus: 'PENDING',
+            requestStatus: 'REQUEST_SENT',
+            bidPlacedAt: 'Just now',
+            returnLoadForShipmentId: isReturnLoad ? originalShipmentId : s.returnLoadForShipmentId,
+            returnLoadStatus: isReturnLoad ? 'WAITING_ORGANIZATION_APPROVAL' : s.returnLoadStatus,
+            timeline: [
+              ...s.timeline,
+              {
+                title: isReturnLoad ? `Return Load Bid Placed (₹${bidAmount.toLocaleString('en-IN')})` : `Bid Submitted (₹${bidAmount.toLocaleString('en-IN')})`,
+                time: 'Just now',
+                completed: true,
+                description: isReturnLoad && originalShipmentId
+                  ? `Placed return haul bid for trip #${originalShipmentId} (${originalShipment?.origin} → ${originalShipment?.destination}). Waiting for ${s.organizationName} approval.`
+                  : `Proposed rate of ₹${bidAmount.toLocaleString('en-IN')} to ${s.organizationName}. Waiting for review.`,
+              },
+            ],
+          };
+        }
+        if (isReturnLoad && originalShipmentId && s.id === originalShipmentId) {
+          return {
+            ...s,
+            activeReturnLoadShipmentId: shipmentId,
+          };
+        }
+        return s;
+      })
+    );
+
+    const notifTitle = isReturnLoad ? 'Return Load Bid Placed' : 'Shipment Bid Submitted';
+    const notifMsg = isReturnLoad
+      ? `Bid of ₹${bidAmount.toLocaleString('en-IN')} placed for return shipment #${target.id} (${target.origin} → ${target.destination}). Waiting for ${target.organizationName} approval.`
+      : `Bid of ₹${bidAmount.toLocaleString('en-IN')} submitted to ${target.organizationName} for Shipment #${target.id}.`;
 
     const notif: OfficeNotification = {
       id: `NOTIF-O-${Date.now()}`,
-      title: 'Vehicle Activated',
-      message: `${vehicle.vehicleNumber} is now active and available for shipment dispatch.`,
+      title: notifTitle,
+      message: notifMsg,
       time: 'Just now',
-      type: 'SYSTEM',
+      type: 'REQUEST',
       read: false,
+      targetId: target.id,
     };
     setOfficeNotifications((prev) => [notif, ...prev]);
 
     return { success: true };
-  }, [vehicles]);
+  }, [shipments]);
 
-  const markVehicleMaintenance = useCallback((vehicleId: string, isMaintenance: boolean) => {
-    setVehicles((prev) =>
-      prev.map((v) => {
-        if (v.id === vehicleId) {
+  // 4c. Cancel Bid
+  const cancelBid = useCallback((shipmentId: string) => {
+    const target = shipments.find((s) => s.id === shipmentId);
+    const origId = target?.returnLoadForShipmentId;
+
+    setShipments((prev) =>
+      prev.map((s) => {
+        if (s.id === shipmentId) {
           return {
-            ...v,
-            status: isMaintenance ? 'MAINTENANCE' : 'AVAILABLE',
+            ...s,
+            currentBidAmount: null,
+            bidStatus: 'NONE',
+            requestStatus: 'NOT_REQUESTED',
+            returnLoadStatus: undefined,
+            returnLoadForShipmentId: undefined,
           };
         }
-        return v;
+        if (origId && s.id === origId) {
+          return {
+            ...s,
+            activeReturnLoadShipmentId: null,
+          };
+        }
+        return s;
       })
     );
-  }, []);
+  }, [shipments]);
 
+  // 4d. Simulate Organization Bid Response (Accept / Reject)
+  const simulateOrgBidResponse = useCallback((shipmentId: string, accept: boolean, reason?: string) => {
+    const target = shipments.find((s) => s.id === shipmentId);
+    if (!target) return;
+
+    const isReturn = !!target.returnLoadForShipmentId;
+    const origShipment = isReturn ? shipments.find((s) => s.id === target.returnLoadForShipmentId) : null;
+    const finalAmount = target.currentBidAmount || target.amount;
+
+    setShipments((prev) =>
+      prev.map((s) => {
+        if (s.id === shipmentId) {
+          if (accept) {
+            return {
+              ...s,
+              amount: finalAmount,
+              bidStatus: 'ACCEPTED',
+              requestStatus: 'ACCEPTED',
+              returnLoadStatus: isReturn ? 'ACCEPTED_BY_ORGANIZATION' : s.returnLoadStatus,
+              assignedDriverId: isReturn ? (origShipment?.assignedDriverId || s.assignedDriverId) : s.assignedDriverId,
+              assignedVehicleId: isReturn ? (origShipment?.assignedVehicleId || s.assignedVehicleId) : s.assignedVehicleId,
+              status: isReturn ? 'ASSIGNMENT_PENDING' : s.status,
+              responseReceivedAt: 'Just now',
+              timeline: [
+                ...s.timeline,
+                {
+                  title: isReturn ? `Organization Accepted Return Load (₹${finalAmount.toLocaleString('en-IN')})` : `Organization Accepted Bid (₹${finalAmount.toLocaleString('en-IN')})`,
+                  time: 'Just now',
+                  completed: true,
+                  description: isReturn
+                    ? `${s.organizationName} approved your return haul bid. Assigned to driver and vehicle from original trip.`
+                    : `${s.organizationName} accepted your bid. Ready for driver & vehicle assignment.`,
+                },
+              ],
+            };
+          } else {
+            return {
+              ...s,
+              bidStatus: 'REJECTED',
+              requestStatus: 'REJECTED',
+              returnLoadStatus: isReturn ? 'REJECTED_BY_ORGANIZATION' : undefined,
+              rejectionReason: reason || 'Organization selected an alternate carrier bid.',
+              responseReceivedAt: 'Just now',
+              timeline: [
+                ...s.timeline,
+                {
+                  title: 'Organization Declined Bid',
+                  time: 'Just now',
+                  completed: true,
+                  description: reason || 'Bid declined by organization.',
+                },
+              ],
+            };
+          }
+        }
+        if (!accept && isReturn && origShipment && s.id === origShipment.id) {
+          return {
+            ...s,
+            activeReturnLoadShipmentId: null,
+          };
+        }
+        return s;
+      })
+    );
+
+    if (accept) {
+      // Office notification
+      const officeNotif: OfficeNotification = {
+        id: `NOTIF-O-${Date.now()}`,
+        title: isReturn ? '🎉 Return Load Bid Approved' : '🎉 Shipment Bid Accepted',
+        message: isReturn
+          ? `${target.organizationName} accepted your return load bid of ₹${finalAmount.toLocaleString('en-IN')} for Shipment #${target.id} (${target.origin} → ${target.destination}). Driver has been notified.`
+          : `${target.organizationName} accepted your bid of ₹${finalAmount.toLocaleString('en-IN')} for Shipment #${target.id}. You can now dispatch a driver.`,
+        time: 'Just now',
+        type: 'REQUEST',
+        read: false,
+        targetId: target.id,
+      };
+      setOfficeNotifications((prev) => [officeNotif, ...prev]);
+
+      // CRITICAL RULE: NOTIFY DRIVER ONLY AFTER ORGANIZATION ACCEPTANCE
+      if (isReturn && origShipment?.assignedDriverId) {
+        const assignedDrv = drivers.find((d) => d.id === origShipment.assignedDriverId);
+        const driverNotif: DriverNotification = {
+          id: `NOTIF-D-${Date.now()}`,
+          title: '🔔 Return Load Confirmed',
+          message: `A return load from ${target.origin} to ${target.destination} has been confirmed with ${target.organizationName}. Rate: ₹${finalAmount.toLocaleString('en-IN')}.`,
+          time: 'Just now',
+          type: 'RETURN_LOAD',
+          read: false,
+          targetId: target.id,
+          shipmentId: target.id,
+          originalShipmentId: origShipment.id,
+          organizationName: target.organizationName,
+          amount: finalAmount,
+          route: `${target.origin} → ${target.destination}`,
+        };
+        setDriverNotifications((prev) => [driverNotif, ...prev]);
+      }
+    } else {
+      const officeNotif: OfficeNotification = {
+        id: `NOTIF-O-${Date.now()}`,
+        title: 'Bid Declined by Organization',
+        message: `${target.organizationName} declined your bid for Shipment #${target.id}.`,
+        time: 'Just now',
+        type: 'REQUEST',
+        read: false,
+        targetId: target.id,
+      };
+      setOfficeNotifications((prev) => [officeNotif, ...prev]);
+    }
+  }, [shipments, drivers]);
+
+  // 4e. Find Matching Return Loads (Auto-reverses origin & destination)
+  const getMatchingReturnLoads = useCallback((originalShipmentId: string) => {
+    const original = shipments.find((s) => s.id === originalShipmentId);
+    if (!original) return [];
+
+    const origOrigin = original.origin.toLowerCase().trim();
+    const origDest = original.destination.toLowerCase().trim();
+
+    return shipments.filter((s) => {
+      if (s.id === originalShipmentId) return false;
+      // Reversible route match: Return origin is original destination, Return destination is original origin
+      const returnOrigin = s.origin.toLowerCase().trim();
+      const returnDest = s.destination.toLowerCase().trim();
+
+      const originMatches = returnOrigin.includes(origDest) || origDest.includes(returnOrigin);
+      const destMatches = returnDest.includes(origOrigin) || origOrigin.includes(returnDest);
+
+      if (!originMatches || !destMatches) return false;
+
+      // Must be available or already linked to this original trip
+      const isAvailable = s.status === 'PENDING_ASSIGNMENT' && (!s.assignedDriverId || s.returnLoadForShipmentId === originalShipmentId);
+      const isLinkedToUs = s.returnLoadForShipmentId === originalShipmentId;
+
+      return isAvailable || isLinkedToUs;
+    });
+  }, [shipments]);
+
+  // 5. Assign Driver & Vehicle (Unlocked ONLY when requestStatus === 'ACCEPTED')
   const assignDriverAndVehicle = useCallback((
     shipmentId: string,
     driverId: string,
     vehicleId: string
   ) => {
     const shipment = shipments.find((s) => s.id === shipmentId);
-    const driver = drivers.find((d) => d.id === driverId);
-    const vehicle = vehicles.find((v) => v.id === vehicleId);
-
     if (!shipment) return { success: false, error: 'Shipment not found.' };
-    if (!driver) return { success: false, error: 'Driver not found.' };
-    if (!vehicle) return { success: false, error: 'Vehicle not found.' };
 
-    if (driver.isActive === false) {
-      return { success: false, error: `Driver ${driver.name} is inactive and cannot be assigned to shipments.` };
+    if (shipment.requestStatus !== 'ACCEPTED') {
+      return {
+        success: false,
+        error: 'Cannot assign fleet before Organization has approved the shipment request.',
+      };
     }
 
-    if (vehicle.isActive === false) {
-      return { success: false, error: `Vehicle ${vehicle.vehicleNumber} is inactive and cannot be assigned to shipments.` };
+    const driver = drivers.find((d) => d.id === driverId);
+    if (!driver) return { success: false, error: 'Selected driver not found.' };
+    if (!driver.isActive || driver.availability !== 'AVAILABLE') {
+      return { success: false, error: `Driver ${driver.name} is currently ${driver.availability.toLowerCase()} or inactive.` };
     }
 
-    if (driver.availability !== 'AVAILABLE') {
-      return { success: false, error: `Driver ${driver.name} is currently ${driver.availability.toLowerCase()}.` };
+    const vehicle = vehicles.find((v) => v.id === vehicleId);
+    if (!vehicle) return { success: false, error: 'Selected vehicle not found.' };
+    if (!vehicle.isActive || vehicle.status !== 'AVAILABLE') {
+      return { success: false, error: `Vehicle ${vehicle.vehicleNumber} is currently ${vehicle.status.toLowerCase()} or inactive.` };
     }
 
-    if (vehicle.status !== 'AVAILABLE') {
-      return { success: false, error: `Vehicle ${vehicle.vehicleNumber} is currently ${vehicle.status.toLowerCase()}.` };
-    }
-
+    // Capacity validation
     if (vehicle.capacityKg < shipment.cargoWeightKg) {
       return {
         success: false,
-        error: `Vehicle capacity (${vehicle.capacityKg.toLocaleString()} KG) is less than shipment weight (${shipment.cargoWeightKg.toLocaleString()} KG).`,
+        error: `Vehicle capacity (${(vehicle.capacityKg / 1000).toFixed(1)}T) is insufficient for shipment cargo weight (${(shipment.cargoWeightKg / 1000).toFixed(1)}T).`,
       };
     }
 
@@ -408,29 +757,26 @@ export const TransportOfficeProvider: React.FC<{ children: React.ReactNode }> = 
           return {
             ...s,
             status: 'ASSIGNMENT_PENDING',
-            tripStage: 'ASSIGNED',
             assignedDriverId: driverId,
             assignedVehicleId: vehicleId,
             declinedDriverId: null,
             declineReason: null,
-            timeline: s.timeline.map((item, idx) => {
-              if (idx === 1) {
-                return {
-                  ...item,
-                  completed: true,
-                  time: 'Just now',
-                  description: `${driver.name} • ${vehicle.vehicleNumber}`,
-                };
-              }
-              return item;
-            }),
+            timeline: [
+              ...s.timeline,
+              {
+                title: 'Driver & Vehicle Assigned',
+                time: 'Just now',
+                completed: true,
+                description: `${driver.name} • ${vehicle.vehicleNumber} • Awaiting Driver Acceptance`,
+              },
+            ],
           };
         }
         return s;
       })
     );
 
-    // Update Driver: state changes to ASSIGNMENT_PENDING (assigned to this shipment & vehicle)
+    // Update Driver
     setDrivers((prev) =>
       prev.map((d) => {
         if (d.id === driverId) {
@@ -445,7 +791,7 @@ export const TransportOfficeProvider: React.FC<{ children: React.ReactNode }> = 
       })
     );
 
-    // Update Vehicle: state changes to ASSIGNED
+    // Update Vehicle
     setVehicles((prev) =>
       prev.map((v) => {
         if (v.id === vehicleId) {
@@ -460,11 +806,11 @@ export const TransportOfficeProvider: React.FC<{ children: React.ReactNode }> = 
       })
     );
 
-    // Notifications
+    // Add Driver Notification
     const driverNotif: DriverNotification = {
       id: `NOTIF-D-${Date.now()}`,
       title: 'New Shipment Assignment',
-      message: `You have been assigned to Shipment #${shipment.id} (${shipment.origin} → ${shipment.destination}) with Vehicle ${vehicle.vehicleNumber}.`,
+      message: `You have been assigned to ${shipment.organizationName} shipment #${shipment.id} (${shipment.origin} → ${shipment.destination}) with vehicle ${vehicle.vehicleNumber}. Amount: ₹${shipment.amount.toLocaleString('en-IN')}.`,
       time: 'Just now',
       type: 'ASSIGNMENT',
       read: false,
@@ -472,26 +818,27 @@ export const TransportOfficeProvider: React.FC<{ children: React.ReactNode }> = 
     };
     setDriverNotifications((prev) => [driverNotif, ...prev]);
 
-    const officeNotif: OfficeNotification = {
-      id: `NOTIF-O-${Date.now()}`,
-      title: 'Assignment Dispatched',
-      message: `Assigned ${driver.name} with vehicle ${vehicle.vehicleNumber} to #${shipment.id}. Awaiting driver acceptance.`,
-      time: 'Just now',
+    // Add History Item
+    const newHist: HistoryItem = {
+      id: `HIST-${Date.now()}`,
       type: 'ASSIGNMENT',
-      read: false,
-      targetId: shipment.id,
+      title: `Shipment #${shipment.id} Assigned`,
+      subtitle: `${shipment.organizationName} • ₹${shipment.amount.toLocaleString('en-IN')} • ${driver.name} & ${vehicle.vehicleNumber}`,
+      date: 'Just now',
+      status: 'PENDING_ACCEPTANCE',
+      route: `${shipment.origin} → ${shipment.destination}`,
+      driverName: driver.name,
+      vehicleNumber: vehicle.vehicleNumber,
     };
-    setOfficeNotifications((prev) => [officeNotif, ...prev]);
+    setHistoryItems((prev) => [newHist, ...prev]);
 
     return { success: true };
   }, [shipments, drivers, vehicles]);
 
+  // 6. Driver Accept Assignment
   const acceptAssignment = useCallback((shipmentId: string) => {
     const shipment = shipments.find((s) => s.id === shipmentId);
     if (!shipment) return;
-
-    const driverId = shipment.assignedDriverId;
-    const vehicleId = shipment.assignedVehicleId;
 
     setShipments((prev) =>
       prev.map((s) => {
@@ -499,56 +846,53 @@ export const TransportOfficeProvider: React.FC<{ children: React.ReactNode }> = 
           return {
             ...s,
             status: 'ACCEPTED',
-            tripStage: 'ASSIGNED',
-            timeline: s.timeline.map((item, idx) => {
-              if (idx === 2) {
-                return {
-                  ...item,
-                  completed: true,
-                  time: 'Just now',
-                  description: 'Accepted by driver',
-                };
-              }
-              return item;
-            }),
+            tripStage: 'READY_FOR_PICKUP',
+            timeline: [
+              ...s.timeline,
+              {
+                title: 'Driver Accepted Assignment',
+                time: 'Just now',
+                completed: true,
+                description: 'Driver confirmed trip & vehicle pre-check',
+              },
+            ],
           };
         }
         return s;
       })
     );
 
-    if (driverId) {
+    if (shipment.assignedDriverId) {
       setDrivers((prev) =>
-        prev.map((d) => (d.id === driverId ? { ...d, availability: 'BUSY' } : d))
+        prev.map((d) => (d.id === shipment.assignedDriverId ? { ...d, availability: 'BUSY' } : d))
       );
     }
 
-    if (vehicleId) {
+    if (shipment.assignedVehicleId) {
       setVehicles((prev) =>
-        prev.map((v) => (v.id === vehicleId ? { ...v, status: 'IN_TRIP' } : v))
+        prev.map((v) => (v.id === shipment.assignedVehicleId ? { ...v, status: 'IN_TRIP' } : v))
       );
     }
 
-    const driver = drivers.find((d) => d.id === driverId);
     const notif: OfficeNotification = {
       id: `NOTIF-O-${Date.now()}`,
       title: 'Assignment Accepted',
-      message: `${driver?.name || 'Driver'} accepted Shipment #${shipment.id}. Ready for pickup.`,
+      message: `Driver accepted assignment for Shipment #${shipment.id} (${shipment.origin} → ${shipment.destination}).`,
       time: 'Just now',
-      type: 'TRIP',
+      type: 'ASSIGNMENT',
       read: false,
       targetId: shipment.id,
     };
     setOfficeNotifications((prev) => [notif, ...prev]);
-  }, [shipments, drivers]);
+  }, [shipments]);
 
+  // 7. Driver Decline Assignment
   const declineAssignment = useCallback((shipmentId: string, reason: string) => {
     const shipment = shipments.find((s) => s.id === shipmentId);
     if (!shipment) return;
 
-    const driverId = shipment.assignedDriverId;
-    const vehicleId = shipment.assignedVehicleId;
-    const driver = drivers.find((d) => d.id === driverId);
+    const declinedDriverId = shipment.assignedDriverId;
+    const declinedVehicleId = shipment.assignedVehicleId;
 
     setShipments((prev) =>
       prev.map((s) => {
@@ -556,39 +900,39 @@ export const TransportOfficeProvider: React.FC<{ children: React.ReactNode }> = 
           return {
             ...s,
             status: 'DECLINED',
-            declinedDriverId: driverId || null,
+            declinedDriverId,
+            declineReason: reason,
             assignedDriverId: null,
             assignedVehicleId: null,
-            declineReason: reason,
-            timeline: s.timeline.map((item, idx) => {
-              if (idx === 1) {
-                return { ...item, completed: false, time: '--', description: `Declined by ${driver?.name || 'driver'}: ${reason}` };
-              }
-              if (idx === 2) {
-                return { ...item, completed: false, time: '--', description: 'Re-assignment required' };
-              }
-              return item;
-            }),
+            timeline: [
+              ...s.timeline,
+              {
+                title: 'Driver Declined Assignment',
+                time: 'Just now',
+                completed: true,
+                description: `Reason: ${reason}`,
+              },
+            ],
           };
         }
         return s;
       })
     );
 
-    if (driverId) {
+    if (declinedDriverId) {
       setDrivers((prev) =>
         prev.map((d) =>
-          d.id === driverId
+          d.id === declinedDriverId
             ? { ...d, availability: 'AVAILABLE', currentShipmentId: null, currentVehicleId: null }
             : d
         )
       );
     }
 
-    if (vehicleId) {
+    if (declinedVehicleId) {
       setVehicles((prev) =>
         prev.map((v) =>
-          v.id === vehicleId
+          v.id === declinedVehicleId
             ? { ...v, status: 'AVAILABLE', currentDriverId: null, currentShipmentId: null }
             : v
         )
@@ -597,15 +941,15 @@ export const TransportOfficeProvider: React.FC<{ children: React.ReactNode }> = 
 
     const notif: OfficeNotification = {
       id: `NOTIF-O-${Date.now()}`,
-      title: 'Assignment Declined',
-      message: `${driver?.name || 'Driver'} declined Shipment #${shipment.id}. Reason: "${reason}". Re-assignment required.`,
+      title: 'Assignment Declined by Driver',
+      message: `Driver declined Shipment #${shipment.id}. Reason: "${reason}". Reassignment required.`,
       time: 'Just now',
       type: 'ASSIGNMENT',
       read: false,
       targetId: shipment.id,
     };
     setOfficeNotifications((prev) => [notif, ...prev]);
-  }, [shipments, drivers]);
+  }, [shipments]);
 
   const startTrip = useCallback((shipmentId: string) => {
     setShipments((prev) =>
@@ -615,339 +959,198 @@ export const TransportOfficeProvider: React.FC<{ children: React.ReactNode }> = 
             ...s,
             status: 'IN_TRANSIT',
             tripStage: 'IN_TRANSIT',
+            timeline: [
+              ...s.timeline,
+              {
+                title: 'Trip In Transit',
+                time: 'Just now',
+                completed: true,
+                description: 'Vehicle en route on highway corridor',
+              },
+            ],
           };
         }
         return s;
       })
     );
-
-    const shipment = shipments.find((s) => s.id === shipmentId);
-    if (shipment?.assignedDriverId) {
-      setDrivers((prev) =>
-        prev.map((d) => (d.id === shipment.assignedDriverId ? { ...d, availability: 'BUSY' } : d))
-      );
-    }
-    if (shipment?.assignedVehicleId) {
-      setVehicles((prev) =>
-        prev.map((v) => (v.id === shipment.assignedVehicleId ? { ...v, status: 'IN_TRIP' } : v))
-      );
-    }
-
-    const notif: OfficeNotification = {
-      id: `NOTIF-O-${Date.now()}`,
-      title: 'Trip Started',
-      message: `Shipment #${shipmentId} (${shipment?.origin} → ${shipment?.destination}) is in progress on highway.`,
-      time: 'Just now',
-      type: 'TRIP',
-      read: false,
-      targetId: shipmentId,
-    };
-    setOfficeNotifications((prev) => [notif, ...prev]);
-  }, [shipments]);
+  }, []);
 
   const advanceTripStage = useCallback((shipmentId: string) => {
-    const s = shipments.find((item) => item.id === shipmentId);
-    if (!s) return;
+    setShipments((prev) =>
+      prev.map((s) => {
+        if (s.id === shipmentId) {
+          const currentStage = s.tripStage || 'ASSIGNED';
+          let nextStage: TripStage = 'IN_TRANSIT';
+          let newStatus = s.status;
 
-    if (s.status === 'ACCEPTED') {
-      startTrip(shipmentId);
-      return;
-    }
-
-    if (s.status === 'IN_TRANSIT') {
-      // Advance to DELIVERED
-      setShipments((prev) =>
-        prev.map((item) => {
-          if (item.id === shipmentId) {
-            return {
-              ...item,
-              status: 'DELIVERED',
-              tripStage: 'DELIVERED',
-            };
+          if (currentStage === 'ASSIGNED') nextStage = 'READY_FOR_PICKUP';
+          else if (currentStage === 'READY_FOR_PICKUP') nextStage = 'TRIP_STARTED';
+          else if (currentStage === 'TRIP_STARTED') {
+            nextStage = 'IN_TRANSIT';
+            newStatus = 'IN_TRANSIT';
+          } else if (currentStage === 'IN_TRANSIT') nextStage = 'ARRIVED';
+          else if (currentStage === 'ARRIVED') {
+            nextStage = 'DELIVERED';
+            newStatus = 'DELIVERED';
           }
-          return item;
-        })
-      );
 
-      // Release driver and vehicle
-      if (s.assignedDriverId) {
-        setDrivers((prev) =>
-          prev.map((d) =>
-            d.id === s.assignedDriverId
-              ? {
-                  ...d,
-                  availability: 'AVAILABLE',
-                  currentShipmentId: null,
-                  currentVehicleId: null,
-                  completedTripsCount: d.completedTripsCount + 1,
-                }
-              : d
-          )
-        );
-      }
+          // If delivered, free up driver and vehicle
+          if (nextStage === 'DELIVERED') {
+            if (s.assignedDriverId) {
+              setDrivers((dPrev) =>
+                dPrev.map((d) =>
+                  d.id === s.assignedDriverId
+                    ? { ...d, availability: 'AVAILABLE', currentShipmentId: null, currentVehicleId: null, completedTripsCount: d.completedTripsCount + 1 }
+                    : d
+                )
+              );
+            }
+            if (s.assignedVehicleId) {
+              setVehicles((vPrev) =>
+                vPrev.map((v) =>
+                  v.id === s.assignedVehicleId
+                    ? { ...v, status: 'AVAILABLE', currentDriverId: null, currentShipmentId: null }
+                    : v
+                )
+              );
+            }
+          }
 
-      if (s.assignedVehicleId) {
-        setVehicles((prev) =>
-          prev.map((v) =>
-            v.id === s.assignedVehicleId
-              ? {
-                  ...v,
-                  status: 'AVAILABLE',
-                  currentDriverId: null,
-                  currentShipmentId: null,
-                }
-              : v
-          )
-        );
-      }
-
-      // Add to History
-      const hist: HistoryItem = {
-        id: `HIST-${Date.now()}`,
-        type: 'SHIPMENT',
-        title: `Shipment #${s.id} Delivered`,
-        subtitle: `${s.origin} → ${s.destination} • ${s.cargoType} (${s.cargoWeightKg.toLocaleString()} KG)`,
-        date: 'Today',
-        status: 'Delivered',
-        route: `${s.origin} → ${s.destination}`,
-        driverName: drivers.find((d) => d.id === s.assignedDriverId)?.name,
-        vehicleNumber: vehicles.find((v) => v.id === s.assignedVehicleId)?.vehicleNumber,
-      };
-      setHistoryItems((prev) => [hist, ...prev]);
-
-      const notif: OfficeNotification = {
-        id: `NOTIF-O-${Date.now()}`,
-        title: 'Shipment Delivered',
-        message: `Shipment #${s.id} delivered successfully. Driver and vehicle are now available.`,
-        time: 'Just now',
-        type: 'TRIP',
-        read: false,
-        targetId: s.id,
-      };
-      setOfficeNotifications((prev) => [notif, ...prev]);
-    }
-  }, [shipments, drivers, vehicles, startTrip]);
+          return {
+            ...s,
+            tripStage: nextStage,
+            status: newStatus,
+            timeline: [
+              ...s.timeline,
+              {
+                title: `Trip Stage: ${nextStage.replace(/_/g, ' ')}`,
+                time: 'Just now',
+                completed: true,
+              },
+            ],
+          };
+        }
+        return s;
+      })
+    );
+  }, []);
 
   const reportBreakdown = useCallback((input: ReportBreakdownInput) => {
     const driver = drivers.find((d) => d.id === input.driverId);
     const vehicle = vehicles.find((v) => v.id === input.vehicleId);
     const shipment = shipments.find((s) => s.id === input.shipmentId);
 
-    const breakdownId = `BD-${String(breakdowns.length + 1).padStart(3, '0')}`;
-
-    const newBreakdown: BreakdownIncident = {
-      id: breakdownId,
+    const newIncident: BreakdownIncident = {
+      id: `BD-${String(breakdowns.length + 1).padStart(3, '0')}`,
       officeId: office.id,
       driverId: input.driverId,
       driverName: driver?.name || 'Driver',
       driverPhone: driver?.phone || '9876543210',
       vehicleId: input.vehicleId,
       vehicleNumber: vehicle?.vehicleNumber || 'Vehicle',
-      vehicleType: vehicle?.vehicleType || '10-Wheeler',
+      vehicleType: vehicle?.vehicleType || 'Truck',
       shipmentId: input.shipmentId,
-      route: shipment ? `${shipment.origin} → ${shipment.destination}` : 'In Transit',
+      route: shipment ? `${shipment.origin} → ${shipment.destination}` : 'Highway',
       issueType: input.issueType,
       description: input.description,
       location: input.location,
-      status: 'MECHANIC_REQUIRED',
+      status: 'REPORTED',
       reportedAt: 'Just now',
     };
 
-    setBreakdowns((prev) => [newBreakdown, ...prev]);
+    setBreakdowns((prev) => [newIncident, ...prev]);
 
-    // Office Alert
-    const officeAlert: OfficeNotification = {
+    const notif: OfficeNotification = {
       id: `NOTIF-O-${Date.now()}`,
       title: '🚨 Breakdown Reported',
-      message: `${newBreakdown.driverName} reported ${newBreakdown.issueType} on ${newBreakdown.vehicleNumber} at ${newBreakdown.location}.`,
+      message: `Driver ${newIncident.driverName} reported ${newIncident.issueType} on vehicle ${newIncident.vehicleNumber} at ${newIncident.location}.`,
       time: 'Just now',
       type: 'BREAKDOWN',
       read: false,
-      targetId: breakdownId,
+      targetId: newIncident.id,
     };
-    setOfficeNotifications((prev) => [officeAlert, ...prev]);
+    setOfficeNotifications((prev) => [notif, ...prev]);
 
-    // Driver confirmation
-    const driverAlert: DriverNotification = {
-      id: `NOTIF-D-${Date.now()}`,
-      title: 'Breakdown Request Transmitted',
-      message: 'Your transport office dispatch has been notified. Stand by for mechanic coordination.',
-      time: 'Just now',
-      type: 'BREAKDOWN',
-      read: false,
-      targetId: breakdownId,
-    };
-    setDriverNotifications((prev) => [driverAlert, ...prev]);
-
-    return newBreakdown;
+    return newIncident;
   }, [drivers, vehicles, shipments, breakdowns.length, office.id]);
 
   const requestMechanic = useCallback((breakdownId: string, mechanicId: string) => {
-    const mechanic = mechanics.find((m) => m.id === mechanicId);
-    const breakdown = breakdowns.find((b) => b.id === breakdownId);
-    if (!breakdown || !mechanic) return;
+    const mech = mechanics.find((m) => m.id === mechanicId);
+    setBreakdowns((prev) =>
+      prev.map((b) =>
+        b.id === breakdownId
+          ? {
+              ...b,
+              status: 'MECHANIC_REQUESTED',
+              assignedMechanicId: mechanicId,
+              assignedMechanicName: mech?.name || 'Assigned Mechanic',
+              mechanicEtaMinutes: mech?.etaMinutes || 25,
+            }
+          : b
+      )
+    );
+  }, [mechanics]);
 
+  const progressMechanicStatus = useCallback((breakdownId: string) => {
     setBreakdowns((prev) =>
       prev.map((b) => {
         if (b.id === breakdownId) {
+          const statusOrder: BreakdownStatus[] = [
+            'REPORTED',
+            'MECHANIC_REQUESTED',
+            'MECHANIC_ACCEPTED',
+            'MECHANIC_ON_WAY',
+            'MECHANIC_ARRIVED',
+            'REPAIRING',
+            'REPAIRED',
+            'RESOLVED',
+          ];
+          const currentIdx = statusOrder.indexOf(b.status);
+          const nextStatus = statusOrder[Math.min(currentIdx + 1, statusOrder.length - 1)];
           return {
             ...b,
-            status: 'MECHANIC_REQUESTED',
-            assignedMechanicId: mechanic.id,
-            assignedMechanicName: mechanic.name,
-            mechanicEtaMinutes: mechanic.etaMinutes,
+            status: nextStatus,
+            resolvedAt: nextStatus === 'RESOLVED' ? 'Just now' : b.resolvedAt,
           };
         }
         return b;
       })
     );
-
-    const driverNotif: DriverNotification = {
-      id: `NOTIF-D-${Date.now()}`,
-      title: 'Mechanic Assigned',
-      message: `${mechanic.name} (${mechanic.workshopName}) has been requested. ETA: ~${mechanic.etaMinutes} mins.`,
-      time: 'Just now',
-      type: 'MECHANIC',
-      read: false,
-      targetId: breakdownId,
-    };
-    setDriverNotifications((prev) => [driverNotif, ...prev]);
-
-    const officeNotif: OfficeNotification = {
-      id: `NOTIF-O-${Date.now()}`,
-      title: 'Mechanic Requested',
-      message: `Request sent to ${mechanic.name} for Breakdown #${breakdownId}. ETA: ~${mechanic.etaMinutes} mins.`,
-      time: 'Just now',
-      type: 'MECHANIC',
-      read: false,
-      targetId: breakdownId,
-    };
-    setOfficeNotifications((prev) => [officeNotif, ...prev]);
-  }, [breakdowns, mechanics]);
-
-  const progressMechanicStatus = useCallback((breakdownId: string) => {
-    const STAGES: BreakdownStatus[] = [
-      'MECHANIC_REQUESTED',
-      'MECHANIC_ACCEPTED',
-      'MECHANIC_ON_WAY',
-      'MECHANIC_ARRIVED',
-      'DIAGNOSING',
-      'REPAIRING',
-      'REPAIRED',
-      'RESOLVED',
-    ];
-
-    setBreakdowns((prev) =>
-      prev.map((b) => {
-        if (b.id !== breakdownId) return b;
-
-        const currentIdx = STAGES.indexOf(b.status);
-        const nextStatus = currentIdx >= 0 && currentIdx < STAGES.length - 1 ? STAGES[currentIdx + 1] : 'RESOLVED';
-
-        let resolvedAt = b.resolvedAt;
-        if (nextStatus === 'REPAIRED' || nextStatus === 'RESOLVED') {
-          resolvedAt = 'Just now';
-        }
-
-        return {
-          ...b,
-          status: nextStatus,
-          resolvedAt,
-        };
-      })
-    );
-
-    const breakdown = breakdowns.find((b) => b.id === breakdownId);
-    if (!breakdown) return;
-
-    const notif: OfficeNotification = {
-      id: `NOTIF-O-${Date.now()}`,
-      title: 'Mechanic Update',
-      message: `Breakdown #${breakdownId} status updated for vehicle ${breakdown.vehicleNumber}.`,
-      time: 'Just now',
-      type: 'MECHANIC',
-      read: false,
-      targetId: breakdownId,
-    };
-    setOfficeNotifications((prev) => [notif, ...prev]);
-  }, [breakdowns]);
+  }, []);
 
   const replaceVehicleForBreakdown = useCallback((breakdownId: string, newVehicleId: string) => {
-    const breakdown = breakdowns.find((b) => b.id === breakdownId);
-    const newVehicle = vehicles.find((v) => v.id === newVehicleId);
-    if (!breakdown || !newVehicle) return { success: false, error: 'Record not found' };
+    const incident = breakdowns.find((b) => b.id === breakdownId);
+    if (!incident) return { success: false, error: 'Breakdown incident not found.' };
 
-    const shipment = shipments.find((s) => s.id === breakdown.shipmentId);
-    if (shipment && newVehicle.capacityKg < shipment.cargoWeightKg) {
-      return {
-        success: false,
-        error: `Replacement vehicle capacity (${newVehicle.capacityKg.toLocaleString()} KG) is less than cargo weight (${shipment.cargoWeightKg.toLocaleString()} KG).`,
-      };
+    const newVeh = vehicles.find((v) => v.id === newVehicleId);
+    if (!newVeh || !newVeh.isActive || newVeh.status !== 'AVAILABLE') {
+      return { success: false, error: 'Replacement vehicle is not available.' };
     }
 
-    const oldVehicleId = breakdown.vehicleId;
+    // Assign new vehicle to shipment
+    setShipments((prev) =>
+      prev.map((s) => (s.id === incident.shipmentId ? { ...s, assignedVehicleId: newVehicleId } : s))
+    );
 
-    // Update old vehicle -> MAINTENANCE
+    // Old vehicle goes to maintenance
     setVehicles((prev) =>
       prev.map((v) => {
-        if (v.id === oldVehicleId) {
-          return {
-            ...v,
-            status: 'MAINTENANCE',
-            currentDriverId: null,
-            currentShipmentId: null,
-          };
+        if (v.id === incident.vehicleId) {
+          return { ...v, status: 'MAINTENANCE', currentDriverId: null, currentShipmentId: null };
         }
         if (v.id === newVehicleId) {
-          return {
-            ...v,
-            status: 'IN_TRIP',
-            currentDriverId: breakdown.driverId,
-            currentShipmentId: breakdown.shipmentId,
-          };
+          return { ...v, status: 'IN_TRIP', currentDriverId: incident.driverId, currentShipmentId: incident.shipmentId };
         }
         return v;
       })
     );
 
-    // Update Driver currentVehicleId
-    setDrivers((prev) =>
-      prev.map((d) => (d.id === breakdown.driverId ? { ...d, currentVehicleId: newVehicleId } : d))
-    );
-
-    // Update Shipment assignedVehicleId
-    setShipments((prev) =>
-      prev.map((s) => (s.id === breakdown.shipmentId ? { ...s, assignedVehicleId: newVehicleId } : s))
-    );
-
-    // Update Breakdown
     setBreakdowns((prev) =>
-      prev.map((b) => {
-        if (b.id === breakdownId) {
-          return {
-            ...b,
-            status: 'RESOLVED',
-            resolvedAt: 'Vehicle Replaced',
-            needsReplacementVehicle: false,
-          };
-        }
-        return b;
-      })
+      prev.map((b) => (b.id === breakdownId ? { ...b, needsReplacementVehicle: false, status: 'RESOLVED', resolvedAt: 'Just now' } : b))
     );
-
-    const driverNotif: DriverNotification = {
-      id: `NOTIF-D-${Date.now()}`,
-      title: 'Replacement Vehicle Assigned',
-      message: `Your transport office assigned replacement vehicle ${newVehicle.vehicleNumber} (${newVehicle.vehicleType}) for Shipment #${breakdown.shipmentId}.`,
-      time: 'Just now',
-      type: 'SYSTEM',
-      read: false,
-      targetId: breakdown.shipmentId,
-    };
-    setDriverNotifications((prev) => [driverNotif, ...prev]);
 
     return { success: true };
-  }, [breakdowns, vehicles, shipments]);
+  }, [breakdowns, vehicles]);
 
   const resumeTripAfterBreakdown = useCallback((breakdownId: string) => {
     setBreakdowns((prev) =>
@@ -955,150 +1158,486 @@ export const TransportOfficeProvider: React.FC<{ children: React.ReactNode }> = 
     );
   }, []);
 
+  const markOfficeNotificationRead = useCallback((id: string) => {
+    setOfficeNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+  }, []);
+
+  const markDriverNotificationRead = useCallback((id: string) => {
+    setDriverNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+  }, []);
+
+  // FASTag & Financial Operations
+  const rechargeVehicleFastag = useCallback((vehicleId: string, amount: number) => {
+    if (amount <= 0) {
+      return { success: false, error: 'Recharge amount must be greater than zero.' };
+    }
+
+    const targetVehicle = vehicles.find((v) => v.id === vehicleId);
+    if (!targetVehicle) {
+      return { success: false, error: 'Vehicle not found.' };
+    }
+
+    const currentFastag = targetVehicle.fastag || {
+      id: `FT-${Math.floor(1000 + Math.random() * 9000)}`,
+      vehicleId,
+      tagNumber: `3416-8921-${Math.floor(1000 + Math.random() * 9000)}`,
+      status: 'ACTIVE',
+      balance: 0,
+      lowBalanceThreshold: 1000,
+      transactions: [],
+    };
+
+    const newBalance = currentFastag.balance + amount;
+    const newStatus = newBalance > currentFastag.lowBalanceThreshold ? 'ACTIVE' : 'LOW_BALANCE';
+
+    const newFastagTxn: FastagTransaction = {
+      id: `FT-TX-${Date.now().toString().slice(-4)}`,
+      vehicleId,
+      vehicleNumber: targetVehicle.vehicleNumber,
+      type: 'RECHARGE',
+      amount,
+      locationOrMethod: 'Transport Office Wallet Recharge',
+      date: 'Today, Just now',
+      status: 'SUCCESS',
+      balanceAfter: newBalance,
+    };
+
+    const updatedFastag: VehicleFastag = {
+      ...currentFastag,
+      balance: newBalance,
+      status: newStatus,
+      lastRechargeAmount: amount,
+      lastRechargeDate: 'Today',
+      transactions: [newFastagTxn, ...currentFastag.transactions],
+    };
+
+    // Update Vehicle
+    setVehicles((prev) =>
+      prev.map((v) => (v.id === vehicleId ? { ...v, fastag: updatedFastag } : v))
+    );
+
+    // Add Passbook Entry (Debit from office balance for FASTag wallet recharge)
+    const newPassbookEntry: PassbookTransaction = {
+      id: `PB-${Date.now().toString().slice(-4)}`,
+      type: 'DEBIT',
+      category: 'FASTAG_RECHARGE',
+      title: 'FASTag Recharge',
+      subtitle: `Vehicle ${targetVehicle.vehicleNumber} • Tag ${updatedFastag.id}`,
+      amount,
+      date: 'Today',
+      refId: targetVehicle.vehicleNumber,
+      balanceAfter: Math.max(0, financials.availableBalance - amount),
+    };
+    setPassbook((prev) => [newPassbookEntry, ...prev]);
+
+    // Update Financials (Available Balance)
+    setFinancials((prev) => ({
+      ...prev,
+      availableBalance: Math.max(0, prev.availableBalance - amount),
+    }));
+
+    // If new balance is healthy, mark any low balance notification for this vehicle as read
+    if (newStatus === 'ACTIVE') {
+      setOfficeNotifications((prev) =>
+        prev.map((n) =>
+          n.type === 'FASTAG_LOW_BALANCE' && n.targetId === vehicleId ? { ...n, read: true } : n
+        )
+      );
+    }
+
+    return { success: true, newBalance };
+  }, [vehicles, financials]);
+
+  const deductVehicleToll = useCallback((vehicleId: string, amount: number, location: string) => {
+    const targetVehicle = vehicles.find((v) => v.id === vehicleId);
+    if (!targetVehicle || !targetVehicle.fastag) {
+      return { success: false, error: 'Vehicle or FASTag not found.' };
+    }
+
+    const currentFastag = targetVehicle.fastag;
+    const newBalance = Math.max(0, currentFastag.balance - amount);
+    const wasLowBalance = currentFastag.status === 'LOW_BALANCE';
+    const isNowLowBalance = newBalance <= currentFastag.lowBalanceThreshold;
+    const newStatus = isNowLowBalance ? 'LOW_BALANCE' : 'ACTIVE';
+
+    const newFastagTxn: FastagTransaction = {
+      id: `FT-TX-${Date.now().toString().slice(-4)}`,
+      vehicleId,
+      vehicleNumber: targetVehicle.vehicleNumber,
+      type: 'TOLL_DEDUCTION',
+      amount,
+      locationOrMethod: location || 'National Highway Toll Plaza',
+      date: 'Today, Just now',
+      status: 'SUCCESS',
+      balanceAfter: newBalance,
+    };
+
+    const updatedFastag: VehicleFastag = {
+      ...currentFastag,
+      balance: newBalance,
+      status: newStatus,
+      lastTollAmount: amount,
+      lastTollDate: 'Today',
+      transactions: [newFastagTxn, ...currentFastag.transactions],
+    };
+
+    setVehicles((prev) =>
+      prev.map((v) => (v.id === vehicleId ? { ...v, fastag: updatedFastag } : v))
+    );
+
+    // Only create notification if transitioning from healthy to low balance (prevent duplicate notifications on render/repeat)
+    if (!wasLowBalance && isNowLowBalance) {
+      const notif: OfficeNotification = {
+        id: `NOTIF-O-${Date.now()}`,
+        title: 'FASTag Low Balance',
+        message: `Vehicle ${targetVehicle.vehicleNumber} FASTag balance is ₹${newBalance.toLocaleString('en-IN')} (Threshold limit ₹${currentFastag.lowBalanceThreshold.toLocaleString('en-IN')}). Please recharge the FASTag to avoid toll payment issues.`,
+        time: 'Just now',
+        type: 'FASTAG_LOW_BALANCE',
+        read: false,
+        targetId: vehicleId,
+      };
+      setOfficeNotifications((prev) => [notif, ...prev]);
+    }
+
+    return { success: true, newBalance };
+  }, [vehicles]);
+
+  const withdrawOfficeFunds = useCallback((amount: number, bankMethod?: string) => {
+    if (amount <= 0) return { success: false, error: 'Withdrawal amount must be greater than zero.' };
+    if (amount > financials.availableBalance) {
+      return { success: false, error: 'Insufficient available account balance.' };
+    }
+
+    const newAvailable = financials.availableBalance - amount;
+    const newWithdrawn = financials.withdrawnAmount + amount;
+
+    setFinancials((prev) => ({
+      ...prev,
+      availableBalance: newAvailable,
+      withdrawnAmount: newWithdrawn,
+    }));
+
+    const newPassbookEntry: PassbookTransaction = {
+      id: `PB-${Date.now().toString().slice(-4)}`,
+      type: 'DEBIT',
+      category: 'WITHDRAWAL',
+      title: 'Bank Withdrawal',
+      subtitle: bankMethod || 'Bank Transfer • Verified Office A/C',
+      amount,
+      date: 'Today',
+      refId: `TXN-WDR-${Date.now().toString().slice(-4)}`,
+      balanceAfter: newAvailable,
+    };
+    setPassbook((prev) => [newPassbookEntry, ...prev]);
+
+    return { success: true };
+  }, [financials]);
+
+  // Driver Auth simulation
   const loginDriverMock = useCallback((identifier: string, pass: string) => {
-    const clean = identifier.trim().toLowerCase();
+    const cleanId = identifier.trim().toUpperCase();
+    const cleanPhone = identifier.replace(/\D/g, '');
+
     const driver = drivers.find(
       (d) =>
-        d.id.toLowerCase() === clean ||
-        d.phone.replace(/\D/g, '') === clean.replace(/\D/g, '') ||
-        d.email.toLowerCase() === clean
+        d.id.toUpperCase() === cleanId ||
+        d.phone.replace(/\D/g, '') === cleanPhone
     );
 
     if (!driver) {
-      return { success: false, error: 'Driver account not found. Please contact your Transport Office.' };
+      return { success: false, error: 'Driver credentials not recognized in Transport Office directory.' };
     }
 
-    if (driver.isFirstLogin) {
-      if (driver.tempPassword && pass !== driver.tempPassword) {
-        return { success: false, error: 'Invalid temporary password provided by your Transport Office.' };
-      }
-      setCurrentDriverUserState(driver);
-      return { success: true, driver, isFirstLogin: true };
-    }
-
-    if (pass.length < 6) {
-      return { success: false, error: 'Invalid password. Must be at least 6 characters.' };
+    if (!driver.isActive) {
+      return { success: false, error: 'Driver account is inactive. Contact your Transport Office dispatcher.' };
     }
 
     setCurrentDriverUserState(driver);
-    return { success: true, driver, isFirstLogin: false };
+    return {
+      success: true,
+      driver,
+      isFirstLogin: driver.isFirstLogin,
+    };
   }, [drivers]);
 
-  const updateDriverPassword = useCallback((driverId: string, _newPass: string) => {
+  const updateDriverPassword = useCallback((driverId: string, newPass: string) => {
     setDrivers((prev) =>
-      prev.map((d) => {
-        if (d.id === driverId) {
-          return {
-            ...d,
-            isFirstLogin: false,
-            tempPassword: undefined,
-          };
-        }
-        return d;
-      })
+      prev.map((d) => (d.id === driverId ? { ...d, isFirstLogin: false, tempPassword: newPass } : d))
     );
     return true;
   }, []);
 
-  const markOfficeNotificationRead = useCallback((id: string) => {
-    setOfficeNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+  const updateDriverProfile = useCallback((driverId: string, updated: Partial<OfficeDriver>) => {
+    // Protected operational fields cannot be modified by driver
+    const { id, officeId, status, availability, assignedVehicleId, ...safeUpdates } = updated as any;
+
+    setDrivers((prev) =>
+      prev.map((d) => {
+        if (d.id === driverId) {
+          const updatedDriver = { ...d, ...safeUpdates };
+          if (currentDriverUser?.id === driverId) {
+            setCurrentDriverUserState(updatedDriver);
+          }
+          return updatedDriver;
+        }
+        return d;
+      })
+    );
+
+    return { success: true };
+  }, [currentDriverUser?.id]);
+
+  const rateMechanicService = useCallback((breakdownId: string, rating: number, comment?: string) => {
+    const incident = breakdowns.find((b) => b.id === breakdownId);
+    if (!incident) {
+      return { success: false, error: 'Breakdown incident not found.' };
+    }
+
+    if (incident.status !== 'RESOLVED' && incident.status !== 'REPAIRED') {
+      return { success: false, error: 'Rating is only available after mechanic service is completed.' };
+    }
+
+    if (incident.driverRated) {
+      return { success: false, error: 'This mechanic service has already been rated.' };
+    }
+
+    // Update Breakdown Incident with driver rating
+    setBreakdowns((prev) =>
+      prev.map((b) =>
+        b.id === breakdownId
+          ? {
+              ...b,
+              driverRated: true,
+              driverRating: rating,
+              driverComment: comment || '',
+            }
+          : b
+      )
+    );
+
+    // Create a new MechanicReview entry
+    const newReview: MechanicReview = {
+      id: `REV-${Date.now().toString().slice(-4)}`,
+      mechanicId: incident.assignedMechanicId || 'MECH-001',
+      driverId: incident.driverId,
+      shipmentId: incident.shipmentId,
+      serviceRequestId: incident.id,
+      rating,
+      comment: comment || 'Quick response and excellent repair.',
+      createdAt: 'Today',
+    };
+
+    setMechanicReviews((prev) => [newReview, ...prev]);
+
+    return { success: true };
+  }, [breakdowns]);
+
+  const advanceShipmentTrackingStep = useCallback((shipmentId: string) => {
+    setShipments((prev) =>
+      prev.map((s) => {
+        if (s.id === shipmentId) {
+          const stages: TripStage[] = [
+            'ASSIGNED',
+            'ACCEPTED',
+            'EN_ROUTE_TO_PICKUP',
+            'ARRIVED_AT_PICKUP',
+            'LOADED',
+            'IN_TRANSIT',
+            'ARRIVED_AT_DESTINATION',
+            'DELIVERED',
+          ];
+          const currentStage = s.tripStage || 'ASSIGNED';
+          const currentIdx = stages.indexOf(currentStage);
+          const nextIdx = Math.min(currentIdx + 1, stages.length - 1);
+          const nextStage = stages[nextIdx];
+
+          let newStatus = s.status;
+          if (nextStage === 'ACCEPTED') newStatus = 'ACCEPTED';
+          else if (nextStage === 'EN_ROUTE_TO_PICKUP' || nextStage === 'ARRIVED_AT_PICKUP' || nextStage === 'LOADED' || nextStage === 'IN_TRANSIT') {
+            newStatus = 'IN_TRANSIT';
+          } else if (nextStage === 'ARRIVED_AT_DESTINATION') {
+            newStatus = 'IN_TRANSIT';
+          } else if (nextStage === 'DELIVERED') {
+            newStatus = 'DELIVERED';
+          }
+
+          // If delivered, update driver availability, vehicle status, and driver completed trip stats
+          if (nextStage === 'DELIVERED') {
+            if (s.assignedDriverId) {
+              setDrivers((dPrev) =>
+                dPrev.map((d) =>
+                  d.id === s.assignedDriverId
+                    ? { ...d, availability: 'AVAILABLE', currentShipmentId: null, currentVehicleId: null, completedTripsCount: d.completedTripsCount + 1 }
+                    : d
+                )
+              );
+            }
+            if (s.assignedVehicleId) {
+              setVehicles((vPrev) =>
+                vPrev.map((v) =>
+                  v.id === s.assignedVehicleId
+                    ? { ...v, status: 'AVAILABLE', currentDriverId: null, currentShipmentId: null }
+                    : v
+                )
+              );
+            }
+          }
+
+          return {
+            ...s,
+            tripStage: nextStage,
+            status: newStatus,
+            timeline: [
+              ...s.timeline,
+              {
+                title: nextStage.replace(/_/g, ' '),
+                time: 'Just now',
+                completed: true,
+                description: `Milestone reached: ${nextStage.replace(/_/g, ' ')}`,
+              },
+            ],
+          };
+        }
+        return s;
+      })
     );
   }, []);
 
-  const markDriverNotificationRead = useCallback((id: string) => {
-    setDriverNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
-  }, []);
-
+  // Getters
   const getDriverById = useCallback((id: string) => drivers.find((d) => d.id === id), [drivers]);
   const getVehicleById = useCallback((id: string) => vehicles.find((v) => v.id === id), [vehicles]);
   const getShipmentById = useCallback((id: string) => shipments.find((s) => s.id === id), [shipments]);
   const getBreakdownById = useCallback((id: string) => breakdowns.find((b) => b.id === id), [breakdowns]);
   const getMechanicById = useCallback((id: string) => mechanics.find((m) => m.id === id), [mechanics]);
+  const getVehicleFastag = useCallback((vehicleId: string) => {
+    const v = vehicles.find((veh) => veh.id === vehicleId);
+    return v?.fastag;
+  }, [vehicles]);
 
-  const value = useMemo<TransportOfficeContextType>(() => ({
-    office,
-    drivers,
-    vehicles,
-    shipments,
-    breakdowns,
-    mechanics,
-    officeNotifications,
-    driverNotifications,
-    historyItems,
-    currentDriverUser,
-    updateOfficeProfile,
-    addDriver,
-    inactivateDriver,
-    activateDriver,
-    rateDriver,
-    addVehicle,
-    inactivateVehicle,
-    activateVehicle,
-    markVehicleMaintenance,
-    assignDriverAndVehicle,
-    requestMechanic,
-    progressMechanicStatus,
-    replaceVehicleForBreakdown,
-    markOfficeNotificationRead,
-    setCurrentDriverUser,
-    loginDriverMock,
-    updateDriverPassword,
-    acceptAssignment,
-    declineAssignment,
-    startTrip,
-    advanceTripStage,
-    reportBreakdown,
-    resumeTripAfterBreakdown,
-    markDriverNotificationRead,
-    getDriverById,
-    getVehicleById,
-    getShipmentById,
-    getBreakdownById,
-    getMechanicById,
-  }), [
-    office,
-    drivers,
-    vehicles,
-    shipments,
-    breakdowns,
-    mechanics,
-    officeNotifications,
-    driverNotifications,
-    historyItems,
-    currentDriverUser,
-    updateOfficeProfile,
-    addDriver,
-    inactivateDriver,
-    activateDriver,
-    rateDriver,
-    addVehicle,
-    inactivateVehicle,
-    activateVehicle,
-    markVehicleMaintenance,
-    assignDriverAndVehicle,
-    requestMechanic,
-    progressMechanicStatus,
-    replaceVehicleForBreakdown,
-    markOfficeNotificationRead,
-    setCurrentDriverUser,
-    loginDriverMock,
-    updateDriverPassword,
-    acceptAssignment,
-    declineAssignment,
-    startTrip,
-    advanceTripStage,
-    reportBreakdown,
-    resumeTripAfterBreakdown,
-    markDriverNotificationRead,
-    getDriverById,
-    getVehicleById,
-    getShipmentById,
-    getBreakdownById,
-    getMechanicById,
-  ]);
+  const value = useMemo(
+    () => ({
+      office,
+      drivers,
+      vehicles,
+      shipments,
+      breakdowns,
+      mechanics,
+      officeNotifications,
+      driverNotifications,
+      historyItems,
+      financials,
+      earningTrips,
+      passbook,
+      rewards,
+      driverFinancials,
+      driverTripEarnings,
+      mechanicReviews,
+      currentDriverUser,
+      updateOfficeProfile,
+      addDriver,
+      inactivateDriver,
+      activateDriver,
+      rateDriver,
+      addVehicle,
+      inactivateVehicle,
+      activateVehicle,
+      markVehicleMaintenance,
+      sendShipmentRequest,
+      simulateOrgResponse,
+      placeBid,
+      cancelBid,
+      simulateOrgBidResponse,
+      getMatchingReturnLoads,
+      assignDriverAndVehicle,
+      requestMechanic,
+      progressMechanicStatus,
+      replaceVehicleForBreakdown,
+      markOfficeNotificationRead,
+      rechargeVehicleFastag,
+      deductVehicleToll,
+      withdrawOfficeFunds,
+      setCurrentDriverUser,
+      loginDriverMock,
+      updateDriverPassword,
+      updateDriverProfile,
+      acceptAssignment,
+      declineAssignment,
+      startTrip,
+      advanceTripStage,
+      advanceShipmentTrackingStep,
+      reportBreakdown,
+      resumeTripAfterBreakdown,
+      rateMechanicService,
+      markDriverNotificationRead,
+      getDriverById,
+      getVehicleById,
+      getShipmentById,
+      getBreakdownById,
+      getMechanicById,
+      getVehicleFastag,
+    }),
+    [
+      office,
+      drivers,
+      vehicles,
+      shipments,
+      breakdowns,
+      mechanics,
+      officeNotifications,
+      driverNotifications,
+      historyItems,
+      financials,
+      earningTrips,
+      passbook,
+      rewards,
+      driverFinancials,
+      driverTripEarnings,
+      mechanicReviews,
+      currentDriverUser,
+      updateOfficeProfile,
+      addDriver,
+      inactivateDriver,
+      activateDriver,
+      rateDriver,
+      addVehicle,
+      inactivateVehicle,
+      activateVehicle,
+      markVehicleMaintenance,
+      sendShipmentRequest,
+      simulateOrgResponse,
+      placeBid,
+      cancelBid,
+      simulateOrgBidResponse,
+      getMatchingReturnLoads,
+      assignDriverAndVehicle,
+      requestMechanic,
+      progressMechanicStatus,
+      replaceVehicleForBreakdown,
+      markOfficeNotificationRead,
+      rechargeVehicleFastag,
+      deductVehicleToll,
+      withdrawOfficeFunds,
+      setCurrentDriverUser,
+      loginDriverMock,
+      updateDriverPassword,
+      updateDriverProfile,
+      acceptAssignment,
+      declineAssignment,
+      startTrip,
+      advanceTripStage,
+      advanceShipmentTrackingStep,
+      reportBreakdown,
+      resumeTripAfterBreakdown,
+      rateMechanicService,
+      markDriverNotificationRead,
+      getDriverById,
+      getVehicleById,
+      getShipmentById,
+      getBreakdownById,
+      getMechanicById,
+      getVehicleFastag,
+    ]
+  );
 
   return (
     <TransportOfficeContext.Provider value={value}>
@@ -1107,7 +1646,7 @@ export const TransportOfficeProvider: React.FC<{ children: React.ReactNode }> = 
   );
 };
 
-export const useTransportOffice = (): TransportOfficeContextType => {
+export const useTransportOffice = () => {
   const context = useContext(TransportOfficeContext);
   if (!context) {
     throw new Error('useTransportOffice must be used within a TransportOfficeProvider');

@@ -115,15 +115,148 @@ export default function TransportOfficeProfileScreen() {
           </View>
         </View>
 
-        {/* QUICK MANAGEMENT LINKS */}
+        {/* OFFICIAL BUSINESS DOCUMENTS */}
+        <View style={styles.sectionCard}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Business & Compliance Documents</Text>
+            <Ionicons name="document-lock-outline" size={18} color={colors.navy} />
+          </View>
+
+          {/* MANAGER AADHAAR CARD */}
+          <View style={styles.docItemCard}>
+            <View style={styles.docIconCircle}>
+              <Ionicons name="card" size={20} color={colors.navy} />
+            </View>
+            <View style={styles.docInfo}>
+              <View style={styles.docTitleRow}>
+                <Text style={styles.docName}>Manager Aadhaar</Text>
+                <View
+                  style={[
+                    styles.statusBadgeSmall,
+                    {
+                      backgroundColor:
+                        office.managerAadhaarStatus === 'VERIFIED'
+                          ? '#DCFCE7'
+                          : office.managerAadhaarStatus === 'REJECTED'
+                          ? '#FEE2E2'
+                          : '#FEF3C7',
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.statusBadgeTextSmall,
+                      {
+                        color:
+                          office.managerAadhaarStatus === 'VERIFIED'
+                            ? '#15803D'
+                            : office.managerAadhaarStatus === 'REJECTED'
+                            ? '#B91C1C'
+                            : '#B45309',
+                      },
+                    ]}
+                  >
+                    {office.managerAadhaarStatus || 'VERIFIED'}
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.docNumber}>
+                Aadhaar No: {office.managerAadhaar ? `XXXX-XXXX-${office.managerAadhaar.slice(-4)}` : 'XXXX-XXXX-8921'}
+              </Text>
+              <Text style={styles.docMeta}>
+                Submitted: {office.submittedDate || '12 Jan 2026'} • Format: PDF (1.4 MB)
+              </Text>
+            </View>
+          </View>
+
+          {/* GST REGISTRATION CERTIFICATE */}
+          <View style={[styles.docItemCard, { marginTop: spacing.sm, borderBottomWidth: 0 }]}>
+            <View style={styles.docIconCircle}>
+              <Ionicons name="receipt" size={20} color={colors.navy} />
+            </View>
+            <View style={styles.docInfo}>
+              <View style={styles.docTitleRow}>
+                <Text style={styles.docName}>GST Registration Certificate</Text>
+                <View
+                  style={[
+                    styles.statusBadgeSmall,
+                    {
+                      backgroundColor:
+                        office.gstStatus === 'VERIFIED'
+                          ? '#DCFCE7'
+                          : office.gstStatus === 'REJECTED'
+                          ? '#FEE2E2'
+                          : '#FEF3C7',
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.statusBadgeTextSmall,
+                      {
+                        color:
+                          office.gstStatus === 'VERIFIED'
+                            ? '#15803D'
+                            : office.gstStatus === 'REJECTED'
+                            ? '#B91C1C'
+                            : '#B45309',
+                      },
+                    ]}
+                  >
+                    {office.gstStatus || 'VERIFIED'}
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.docNumber}>GSTIN: {office.gstNumber || '33AABCT1332L1Z5'}</Text>
+              <Text style={styles.docMeta}>
+                Submitted: {office.submittedDate || '12 Jan 2026'} • Format: PDF (2.1 MB)
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* ACCOUNT & FINANCIAL SERVICES */}
         <View style={styles.menuCard}>
           <TouchableOpacity
             style={styles.menuItem}
-            onPress={() => router.push('/transport-office/history' as any)}
+            onPress={() => router.push('/transport-office/earnings' as any)}
           >
             <View style={styles.menuLeft}>
-              <Ionicons name="document-text-outline" size={20} color={colors.navy} style={{ marginRight: 12 }} />
-              <Text style={styles.menuText}>Audit & Operational History</Text>
+              <Ionicons name="stats-chart-outline" size={20} color={colors.navy} style={{ marginRight: 12 }} />
+              <Text style={styles.menuText}>Earnings & Revenue</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => router.push('/transport-office/passbook' as any)}
+          >
+            <View style={styles.menuLeft}>
+              <Ionicons name="book-outline" size={20} color={colors.navy} style={{ marginRight: 12 }} />
+              <Text style={styles.menuText}>Financial Passbook & Balance</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => router.push('/transport-office/rewards' as any)}
+          >
+            <View style={styles.menuLeft}>
+              <Ionicons name="trophy-outline" size={20} color={colors.navy} style={{ marginRight: 12 }} />
+              <Text style={styles.menuText}>Fleet Rewards & Tiers</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => router.push('/transport-office/fastag' as any)}
+          >
+            <View style={styles.menuLeft}>
+              <Ionicons name="car-outline" size={20} color={colors.navy} style={{ marginRight: 12 }} />
+              <Text style={styles.menuText}>FASTag Fleet Management</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
           </TouchableOpacity>
@@ -141,11 +274,22 @@ export default function TransportOfficeProfileScreen() {
 
           <TouchableOpacity
             style={styles.menuItem}
+            onPress={() => router.push('/transport-office/history' as any)}
+          >
+            <View style={styles.menuLeft}>
+              <Ionicons name="document-text-outline" size={20} color={colors.navy} style={{ marginRight: 12 }} />
+              <Text style={styles.menuText}>Audit & Operational History</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.menuItem}
             onPress={() => router.push('/transport-office/change-password' as any)}
           >
             <View style={styles.menuLeft}>
               <Ionicons name="key-outline" size={20} color={colors.navy} style={{ marginRight: 12 }} />
-              <Text style={styles.menuText}>Change Master Password</Text>
+              <Text style={styles.menuText}>Change Password</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
           </TouchableOpacity>
@@ -326,6 +470,56 @@ const styles = StyleSheet.create({
     color: colors.navy,
     maxWidth: '60%',
     textAlign: 'right',
+  },
+  docItemCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  docIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.md,
+    backgroundColor: '#EEF2FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+  },
+  docInfo: {
+    flex: 1,
+  },
+  docTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  docName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.navy,
+  },
+  statusBadgeSmall: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+  },
+  statusBadgeTextSmall: {
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  docNumber: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.slate,
+    marginTop: 1,
+  },
+  docMeta: {
+    fontSize: 10,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
   menuCard: {
     backgroundColor: '#FFFFFF',

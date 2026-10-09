@@ -20,6 +20,8 @@ export default function DriverNotificationsScreen() {
 
   const getIconForType = (type: string) => {
     switch (type) {
+      case 'RETURN_LOAD':
+        return { name: 'repeat' as const, color: '#2563EB', bg: '#EFF6FF' };
       case 'BREAKDOWN':
         return { name: 'warning' as const, color: '#DC2626', bg: '#FEE2E2' };
       case 'ASSIGNMENT':
@@ -68,7 +70,7 @@ export default function DriverNotificationsScreen() {
                 activeOpacity={0.8}
                 onPress={() => {
                   markDriverNotificationRead(notif.id);
-                  if (notif.type === 'ASSIGNMENT') {
+                  if (notif.type === 'ASSIGNMENT' || notif.type === 'RETURN_LOAD') {
                     router.push('/office-driver/assignments' as any);
                   } else if (notif.type === 'BREAKDOWN' || notif.type === 'MECHANIC') {
                     router.push('/office-driver/breakdown/status' as any);

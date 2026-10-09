@@ -36,9 +36,40 @@ export default function TransportOfficeRegistrationScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  const [managerAadhaar, setManagerAadhaar] = useState('');
+  const [managerAadhaarDoc, setManagerAadhaarDoc] = useState<{ name: string; size: string; status: 'PENDING' | 'VERIFIED' | 'REJECTED' } | null>(null);
+  const [gstNumber, setGstNumber] = useState('');
+  const [gstDoc, setGstDoc] = useState<{ name: string; size: string; status: 'PENDING' | 'VERIFIED' | 'REJECTED' } | null>(null);
+
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+
+  const handleSelectAadhaar = () => {
+    setManagerAadhaarDoc({
+      name: 'Manager_Aadhaar_Card.pdf',
+      size: '1.4 MB',
+      status: 'PENDING',
+    });
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next.managerAadhaarDoc;
+      return next;
+    });
+  };
+
+  const handleSelectGst = () => {
+    setGstDoc({
+      name: 'GST_Registration_Certificate.pdf',
+      size: '2.1 MB',
+      status: 'PENDING',
+    });
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next.gstDoc;
+      return next;
+    });
+  };
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
@@ -71,6 +102,28 @@ export default function TransportOfficeRegistrationScreen() {
       newErrors.pincode = 'Please enter a valid 6-digit Indian pincode';
     }
 
+    // Manager Aadhaar Validation
+    const cleanAadhaar = managerAadhaar.replace(/\D/g, '');
+    if (!cleanAadhaar) {
+      newErrors.managerAadhaar = 'Manager 12-digit Aadhaar number is required';
+    } else if (cleanAadhaar.length !== 12) {
+      newErrors.managerAadhaar = 'Aadhaar must be exactly 12 digits';
+    }
+    if (!managerAadhaarDoc) {
+      newErrors.managerAadhaarDoc = 'Manager Aadhaar document file is required';
+    }
+
+    // GST Validation
+    const cleanGst = gstNumber.trim().toUpperCase();
+    if (!cleanGst) {
+      newErrors.gstNumber = 'GST Registration number (GSTIN) is required';
+    } else if (cleanGst.length !== 15) {
+      newErrors.gstNumber = 'GSTIN must be 15 alphanumeric characters (e.g. 33AABCT1332L1Z5)';
+    }
+    if (!gstDoc) {
+      newErrors.gstDoc = 'GST Registration certificate document is required';
+    }
+
     if (!password) {
       newErrors.password = 'Password is required';
     } else if (password.length < 8) {
@@ -101,6 +154,10 @@ export default function TransportOfficeRegistrationScreen() {
         city: city.trim(),
         state: stateName.trim(),
         pincode: pincode.trim(),
+        managerAadhaar: managerAadhaar.trim(),
+        managerAadhaarStatus: managerAadhaarDoc?.status || 'PENDING',
+        gstNumber: gstNumber.toUpperCase().trim(),
+        gstStatus: gstDoc?.status || 'PENDING',
       });
       setIsLoading(false);
       setIsSuccess(true);
@@ -115,9 +172,9 @@ export default function TransportOfficeRegistrationScreen() {
             <Ionicons name="checkmark-circle" size={72} color={colors.green} />
           </View>
 
-          <Text style={styles.successTitle}>Transport Office Registered Successfully</Text>
+          <Text style={styles.successTitle}>Transport Office Registered</Text>
           <Text style={styles.successSubtitle}>
-            Your transport office hub account for <Text style={{ fontWeight: 'bold', color: colors.navy }}>{officeName}</Text> has been created in the Haul360 freight network.
+            Your transport office hub account for <Text style={{ fontWeight: 'bold', color: colors.navy }}>{officeName}</Text> has been created with verified business documents.
           </Text>
 
           <View style={styles.summaryCard}>
@@ -133,11 +190,18 @@ export default function TransportOfficeRegistrationScreen() {
               <Text style={styles.summaryLabel}>Operating Hub</Text>
               <Text style={styles.summaryValue}>{city}, {stateName}</Text>
             </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Manager Aadhaar</Text>
+              <View style={styles.pendingBadge}>
+                <Ionicons name="time-outline" size={12} color="#B45309" />
+                <Text style={styles.pendingText}>Pending Review</Text>
+              </View>
+            </View>
             <View style={[styles.summaryRow, { borderBottomWidth: 0 }]}>
-              <Text style={styles.summaryLabel}>Status</Text>
-              <View style={styles.verifiedBadge}>
-                <Ionicons name="shield-checkmark" size={12} color={colors.green} />
-                <Text style={styles.verifiedText}>Network Verified</Text>
+              <Text style={styles.summaryLabel}>GST Certificate</Text>
+              <View style={styles.pendingBadge}>
+                <Ionicons name="time-outline" size={12} color="#B45309" />
+                <Text style={styles.pendingText}>Pending Review</Text>
               </View>
             </View>
           </View>
@@ -175,15 +239,16 @@ export default function TransportOfficeRegistrationScreen() {
           <View style={styles.titleSection}>
             <Text style={styles.title}>Register Transport Office</Text>
             <Text style={styles.subtitle}>
-              Manage your drivers, vehicle assets, and dispatch assignments.
+              Provide your official business details and mandatory regulatory documents.
             </Text>
           </View>
 
+          {/* 1. OFFICE DETAILS */}
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionHeader}>Office Details</Text>
+            <Text style={styles.sectionHeader}>1. Office Details</Text>
 
             <Input
-              label="Transport Office / Company Name"
+              label="Transport Office / Company Name *"
               placeholder="e.g. Haul360 Southern Logistics"
               value={officeName}
               onChangeText={setOfficeName}
@@ -191,7 +256,7 @@ export default function TransportOfficeRegistrationScreen() {
             />
 
             <Input
-              label="Manager / Contact Person Name"
+              label="Manager / Contact Person Name *"
               placeholder="e.g. Ramesh Chandran"
               value={managerName}
               onChangeText={setManagerName}
@@ -199,7 +264,7 @@ export default function TransportOfficeRegistrationScreen() {
             />
 
             <Input
-              label="Official Mobile Number"
+              label="Official Mobile Number *"
               placeholder="10-digit mobile number"
               value={phone}
               onChangeText={setPhone}
@@ -209,7 +274,7 @@ export default function TransportOfficeRegistrationScreen() {
             />
 
             <Input
-              label="Dispatch Email Address"
+              label="Dispatch Email Address *"
               placeholder="dispatch@company.in"
               value={email}
               onChangeText={setEmail}
@@ -219,11 +284,12 @@ export default function TransportOfficeRegistrationScreen() {
             />
           </View>
 
+          {/* 2. LOCATION & OPERATING HUB */}
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionHeader}>Location & Operating Hub</Text>
+            <Text style={styles.sectionHeader}>2. Location & Operating Hub</Text>
 
             <Input
-              label="Office Address"
+              label="Office Address *"
               placeholder="Street address, Industrial area"
               value={address}
               onChangeText={setAddress}
@@ -233,7 +299,7 @@ export default function TransportOfficeRegistrationScreen() {
             <View style={styles.row}>
               <View style={{ flex: 1, marginRight: spacing.sm }}>
                 <Input
-                  label="City"
+                  label="City *"
                   placeholder="Chennai"
                   value={city}
                   onChangeText={setCity}
@@ -242,7 +308,7 @@ export default function TransportOfficeRegistrationScreen() {
               </View>
               <View style={{ flex: 1, marginLeft: spacing.sm }}>
                 <Input
-                  label="State"
+                  label="State *"
                   placeholder="Tamil Nadu"
                   value={stateName}
                   onChangeText={setStateName}
@@ -252,7 +318,7 @@ export default function TransportOfficeRegistrationScreen() {
             </View>
 
             <Input
-              label="Pincode"
+              label="Pincode *"
               placeholder="6-digit PIN code"
               value={pincode}
               onChangeText={setPincode}
@@ -262,12 +328,119 @@ export default function TransportOfficeRegistrationScreen() {
             />
           </View>
 
+          {/* 3. MANDATORY BUSINESS DOCUMENTS */}
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionHeader}>Security Credentials</Text>
+            <Text style={styles.sectionHeader}>3. Mandatory Business Documents</Text>
+            <Text style={styles.docSectionSubtitle}>
+              Required for government compliance and freight network verification.
+            </Text>
+
+            {/* MANAGER AADHAAR */}
+            <View style={styles.docCard}>
+              <View style={styles.docHeader}>
+                <View style={styles.docIconBox}>
+                  <Ionicons name="card-outline" size={20} color={colors.navy} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.docTitle}>Manager Aadhaar *</Text>
+                  <Text style={styles.docSub}>Identity proof of the registered fleet manager</Text>
+                </View>
+                <View style={[styles.docStatusBadge, { backgroundColor: managerAadhaarDoc ? '#FEF3C7' : '#F1F5F9' }]}>
+                  <Text style={[styles.docStatusText, { color: managerAadhaarDoc ? '#B45309' : '#64748B' }]}>
+                    {managerAadhaarDoc ? 'Status: Pending' : 'Required'}
+                  </Text>
+                </View>
+              </View>
+
+              <Input
+                label="Manager Aadhaar Number (12 digits) *"
+                placeholder="XXXX XXXX XXXX"
+                value={managerAadhaar}
+                onChangeText={setManagerAadhaar}
+                keyboardType="number-pad"
+                maxLength={12}
+                error={errors.managerAadhaar}
+                containerStyle={{ marginTop: spacing.sm }}
+              />
+
+              {managerAadhaarDoc ? (
+                <View style={styles.uploadedDocRow}>
+                  <Ionicons name="document-attach" size={18} color={colors.green} style={{ marginRight: 6 }} />
+                  <Text style={styles.uploadedDocName} numberOfLines={1}>
+                    {managerAadhaarDoc.name} ({managerAadhaarDoc.size})
+                  </Text>
+                  <TouchableOpacity onPress={() => setManagerAadhaarDoc(null)} style={styles.removeDocBtn}>
+                    <Ionicons name="close-circle" size={18} color="#94A3B8" />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity style={styles.uploadButton} onPress={handleSelectAadhaar} activeOpacity={0.8}>
+                  <Ionicons name="cloud-upload-outline" size={18} color={colors.navy} style={{ marginRight: 6 }} />
+                  <Text style={styles.uploadButtonText}>Upload Manager Aadhaar Document</Text>
+                </TouchableOpacity>
+              )}
+              {errors.managerAadhaarDoc && (
+                <Text style={styles.fieldErrorText}>{errors.managerAadhaarDoc}</Text>
+              )}
+            </View>
+
+            {/* GST REGISTRATION CERTIFICATE */}
+            <View style={[styles.docCard, { marginTop: spacing.md }]}>
+              <View style={styles.docHeader}>
+                <View style={styles.docIconBox}>
+                  <Ionicons name="receipt-outline" size={20} color={colors.navy} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.docTitle}>GST Registration Certificate *</Text>
+                  <Text style={styles.docSub}>Official 15-character GSTIN business certificate</Text>
+                </View>
+                <View style={[styles.docStatusBadge, { backgroundColor: gstDoc ? '#FEF3C7' : '#F1F5F9' }]}>
+                  <Text style={[styles.docStatusText, { color: gstDoc ? '#B45309' : '#64748B' }]}>
+                    {gstDoc ? 'Status: Pending' : 'Required'}
+                  </Text>
+                </View>
+              </View>
+
+              <Input
+                label="GSTIN Number (15 chars) *"
+                placeholder="e.g. 33AABCT1332L1Z5"
+                value={gstNumber}
+                onChangeText={(t) => setGstNumber(t.toUpperCase())}
+                autoCapitalize="characters"
+                maxLength={15}
+                error={errors.gstNumber}
+                containerStyle={{ marginTop: spacing.sm }}
+              />
+
+              {gstDoc ? (
+                <View style={styles.uploadedDocRow}>
+                  <Ionicons name="document-attach" size={18} color={colors.green} style={{ marginRight: 6 }} />
+                  <Text style={styles.uploadedDocName} numberOfLines={1}>
+                    {gstDoc.name} ({gstDoc.size})
+                  </Text>
+                  <TouchableOpacity onPress={() => setGstDoc(null)} style={styles.removeDocBtn}>
+                    <Ionicons name="close-circle" size={18} color="#94A3B8" />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity style={styles.uploadButton} onPress={handleSelectGst} activeOpacity={0.8}>
+                  <Ionicons name="cloud-upload-outline" size={18} color={colors.navy} style={{ marginRight: 6 }} />
+                  <Text style={styles.uploadButtonText}>Upload GST Registration Certificate</Text>
+                </TouchableOpacity>
+              )}
+              {errors.gstDoc && (
+                <Text style={styles.fieldErrorText}>{errors.gstDoc}</Text>
+              )}
+            </View>
+          </View>
+
+          {/* 4. SECURITY CREDENTIALS */}
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionHeader}>4. Security Credentials</Text>
 
             <View style={styles.passwordWrapper}>
               <Input
-                label="Password (min 8 chars)"
+                label="Password (min 8 chars) *"
                 placeholder="Enter strong password"
                 value={password}
                 onChangeText={setPassword}
@@ -289,7 +462,7 @@ export default function TransportOfficeRegistrationScreen() {
 
             <View style={[styles.passwordWrapper, { marginTop: spacing.md }]}>
               <Input
-                label="Confirm Password"
+                label="Confirm Password *"
                 placeholder="Re-enter password"
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
@@ -311,9 +484,9 @@ export default function TransportOfficeRegistrationScreen() {
           </View>
 
           <View style={styles.infoBanner}>
-            <Ionicons name="information-circle-outline" size={20} color={colors.blue} style={{ marginRight: 8 }} />
+            <Ionicons name="shield-checkmark-outline" size={20} color={colors.blue} style={{ marginRight: 8 }} />
             <Text style={styles.infoBannerText}>
-              Transport Office drivers are added directly from your dashboard after registration. Drivers do not self-register.
+              Business documents are verified by Haul360 fleet operations. Drivers are registered securely inside your office portal.
             </Text>
           </View>
 
@@ -401,6 +574,91 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
     paddingBottom: spacing.xs,
+  },
+  docSectionSubtitle: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: spacing.md,
+  },
+  docCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: radius.md,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  docHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  docIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.md,
+    backgroundColor: '#EEF2FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+  },
+  docTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.navy,
+  },
+  docSub: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginTop: 1,
+  },
+  docStatusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.pill,
+  },
+  docStatusText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  uploadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderStyle: 'dashed',
+    borderRadius: radius.md,
+    paddingVertical: 10,
+    marginTop: spacing.sm,
+  },
+  uploadButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.navy,
+  },
+  uploadedDocRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: radius.md,
+    marginTop: spacing.sm,
+  },
+  uploadedDocName: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#15803D',
+  },
+  removeDocBtn: {
+    padding: 2,
+  },
+  fieldErrorText: {
+    fontSize: 11,
+    color: '#DC2626',
+    marginTop: 4,
+    fontWeight: '500',
   },
   row: {
     flexDirection: 'row',
@@ -505,18 +763,18 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: colors.navy,
   },
-  verifiedBadge: {
+  pendingBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#DCFCE7',
+    backgroundColor: '#FEF3C7',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: radius.pill,
   },
-  verifiedText: {
+  pendingText: {
     fontSize: 11,
     fontWeight: 'bold',
-    color: colors.green,
+    color: '#B45309',
     marginLeft: 4,
   },
   continueButton: {

@@ -35,6 +35,18 @@ export default function AddVehicleScreen() {
   const [capacityKg, setCapacityKg] = useState('10000');
   const [fuelType, setFuelType] = useState<'Diesel' | 'CNG' | 'Electric'>('Diesel');
   const [rcNumber, setRcNumber] = useState('');
+  const [rcDoc, setRcDoc] = useState<{ name: string; size: string; status: 'PENDING' | 'VERIFIED' | 'REJECTED' | 'EXPIRING' } | null>({
+    name: 'RC_Book_Smartcard.pdf',
+    size: '1.5 MB',
+    status: 'VERIFIED',
+  });
+  const [insuranceNumber, setInsuranceNumber] = useState('');
+  const [insuranceExpiry, setInsuranceExpiry] = useState('2028-09-30');
+  const [insuranceDoc, setInsuranceDoc] = useState<{ name: string; size: string; status: 'PENDING' | 'VERIFIED' | 'REJECTED' | 'EXPIRING' } | null>({
+    name: 'Commercial_Vehicle_Insurance.pdf',
+    size: '1.2 MB',
+    status: 'VERIFIED',
+  });
   const [insuranceStatus, setInsuranceStatus] = useState<'VALID' | 'EXPIRING_SOON' | 'EXPIRED'>('VALID');
   const [permitStatus, setPermitStatus] = useState<'NATIONAL_PERMIT' | 'STATE_PERMIT'>('NATIONAL_PERMIT');
 
@@ -49,6 +61,10 @@ export default function AddVehicleScreen() {
     setCapacityKg('10000');
     setFuelType('Diesel');
     setRcNumber('');
+    setRcDoc({ name: 'RC_Book_Smartcard.pdf', size: '1.5 MB', status: 'VERIFIED' });
+    setInsuranceNumber('');
+    setInsuranceExpiry('2028-09-30');
+    setInsuranceDoc({ name: 'Commercial_Vehicle_Insurance.pdf', size: '1.2 MB', status: 'VERIFIED' });
     setInsuranceStatus('VALID');
     setPermitStatus('NATIONAL_PERMIT');
     setErrors({});
@@ -84,11 +100,22 @@ export default function AddVehicleScreen() {
       errs.capacityKg = 'Enter valid payload capacity in KG';
     }
 
+    // 1. RC Book
     const cleanRc = rcNumber.replace(/\s+/g, '').toUpperCase();
     if (!cleanRc) {
       errs.rcNumber = 'RC Registration certificate number is required';
     } else if (vehicles.some((v) => v.rcNumber.replace(/\s+/g, '').toUpperCase() === cleanRc)) {
       errs.rcNumber = `Vehicle with RC ${cleanRc} is already registered in your fleet.`;
+    }
+
+    // 2. Insurance
+    const cleanIns = insuranceNumber.trim().toUpperCase();
+    if (!cleanIns) {
+      errs.insuranceNumber = 'Insurance policy number is required';
+    }
+
+    if (!insuranceExpiry.trim()) {
+      errs.insuranceExpiry = 'Insurance validity expiry date is required';
     }
 
     setErrors(errs);
@@ -106,7 +133,10 @@ export default function AddVehicleScreen() {
       capacityKg: parseInt(capacityKg, 10),
       fuelType,
       rcNumber: rcNumber.toUpperCase().trim(),
-      insuranceStatus,
+      rcStatus: rcDoc?.status || 'VERIFIED',
+      insuranceNumber: insuranceNumber.toUpperCase().trim(),
+      insuranceExpiry: insuranceExpiry.trim(),
+      insuranceStatus: rcDoc?.status === 'EXPIRING' ? 'EXPIRING_SOON' : 'VALID',
       permitStatus,
     });
 
@@ -264,23 +294,99 @@ export default function AddVehicleScreen() {
             </View>
           </View>
 
-          {/* COMPLIANCE & PERMITS */}
+          {/* COMPLIANCE & LEGAL DOCUMENTS */}
           <View style={[styles.formSection, { marginTop: spacing.md }]}>
-            <Text style={styles.sectionTitle}>Compliance & Registration</Text>
+            <Text style={styles.sectionTitle}>Mandatory Vehicle Documents</Text>
+            <Text style={styles.sectionSubtitle}>
+              Collect RC Certificate and Commercial Vehicle Insurance policy.
+            </Text>
 
-            <Input
-              label="RC Certificate Number"
-              placeholder="e.g. RC-TN38-2023-9988"
-              value={rcNumber}
-              onChangeText={(val) => {
-                setRcNumber(val);
-                if (errors.rcNumber) setErrors((prev) => ({ ...prev, rcNumber: '' }));
-              }}
-              autoCapitalize="characters"
-              error={errors.rcNumber}
-            />
+            {/* 1. RC BOOK */}
+            <View style={styles.docInputCard}>
+              <View style={styles.docInputHeader}>
+                <View style={styles.docIconBox}>
+                  <Ionicons name="document-text-outline" size={20} color={colors.navy} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.docInputTitle}>1. RC Registration Book *</Text>
+                  <Text style={styles.docInputSub}>Regional Transport Office (RTO) Smart Card</Text>
+                </View>
+                <View style={[styles.docStatusBadge, { backgroundColor: '#DCFCE7' }]}>
+                  <Text style={[styles.docStatusBadgeText, { color: '#15803D' }]}>Status: Verified</Text>
+                </View>
+              </View>
 
-            <Text style={styles.fieldLabel}>Permit Coverage</Text>
+              <Input
+                label="RC Certificate Number *"
+                placeholder="e.g. RC-TN38-2023-9988"
+                value={rcNumber}
+                onChangeText={(val) => {
+                  setRcNumber(val);
+                  if (errors.rcNumber) setErrors((prev) => ({ ...prev, rcNumber: '' }));
+                }}
+                autoCapitalize="characters"
+                error={errors.rcNumber}
+                containerStyle={{ marginTop: spacing.sm }}
+              />
+
+              <View style={styles.uploadDocRow}>
+                <Ionicons name="document-attach" size={16} color={colors.green} style={{ marginRight: 6 }} />
+                <Text style={styles.uploadedDocName} numberOfLines={1}>
+                  {rcDoc?.name || 'RC_Book_Smartcard.pdf'} ({rcDoc?.size || '1.5 MB'})
+                </Text>
+                <Ionicons name="checkmark-circle" size={16} color={colors.green} />
+              </View>
+            </View>
+
+            {/* 2. INSURANCE POLICY */}
+            <View style={[styles.docInputCard, { marginTop: spacing.md }]}>
+              <View style={styles.docInputHeader}>
+                <View style={styles.docIconBox}>
+                  <Ionicons name="shield-checkmark-outline" size={20} color={colors.navy} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.docInputTitle}>2. Commercial Vehicle Insurance *</Text>
+                  <Text style={styles.docInputSub}>Comprehensive Goods Carrier Motor Insurance</Text>
+                </View>
+                <View style={[styles.docStatusBadge, { backgroundColor: '#DCFCE7' }]}>
+                  <Text style={[styles.docStatusBadgeText, { color: '#15803D' }]}>Status: Verified</Text>
+                </View>
+              </View>
+
+              <Input
+                label="Insurance Policy Number *"
+                placeholder="e.g. POL-BAJAJ-771234-2026"
+                value={insuranceNumber}
+                onChangeText={(val) => {
+                  setInsuranceNumber(val);
+                  if (errors.insuranceNumber) setErrors((prev) => ({ ...prev, insuranceNumber: '' }));
+                }}
+                autoCapitalize="characters"
+                error={errors.insuranceNumber}
+                containerStyle={{ marginTop: spacing.sm }}
+              />
+
+              <Input
+                label="Insurance Policy Expiry *"
+                placeholder="YYYY-MM-DD (e.g. 2028-09-30)"
+                value={insuranceExpiry}
+                onChangeText={(val) => {
+                  setInsuranceExpiry(val);
+                  if (errors.insuranceExpiry) setErrors((prev) => ({ ...prev, insuranceExpiry: '' }));
+                }}
+                error={errors.insuranceExpiry}
+              />
+
+              <View style={styles.uploadDocRow}>
+                <Ionicons name="document-attach" size={16} color={colors.green} style={{ marginRight: 6 }} />
+                <Text style={styles.uploadedDocName} numberOfLines={1}>
+                  {insuranceDoc?.name || 'Commercial_Vehicle_Insurance.pdf'} ({insuranceDoc?.size || '1.2 MB'})
+                </Text>
+                <Ionicons name="checkmark-circle" size={16} color={colors.green} />
+              </View>
+            </View>
+
+            <Text style={[styles.fieldLabel, { marginTop: spacing.md }]}>Permit Coverage</Text>
             <View style={styles.segmentRow}>
               <TouchableOpacity
                 style={[styles.segmentBtn, permitStatus === 'NATIONAL_PERMIT' && styles.segmentBtnActive]}
@@ -296,26 +402,6 @@ export default function AddVehicleScreen() {
               >
                 <Text style={[styles.segmentBtnText, permitStatus === 'STATE_PERMIT' && styles.segmentBtnTextActive]}>
                   State Permit
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.fieldLabel}>Insurance Status</Text>
-            <View style={styles.segmentRow}>
-              <TouchableOpacity
-                style={[styles.segmentBtn, insuranceStatus === 'VALID' && styles.segmentBtnActive]}
-                onPress={() => setInsuranceStatus('VALID')}
-              >
-                <Text style={[styles.segmentBtnText, insuranceStatus === 'VALID' && styles.segmentBtnTextActive]}>
-                  Valid Policy
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.segmentBtn, insuranceStatus === 'EXPIRING_SOON' && styles.segmentBtnActive]}
-                onPress={() => setInsuranceStatus('EXPIRING_SOON')}
-              >
-                <Text style={[styles.segmentBtnText, insuranceStatus === 'EXPIRING_SOON' && styles.segmentBtnTextActive]}>
-                  Expiring Soon
                 </Text>
               </TouchableOpacity>
             </View>
@@ -382,7 +468,70 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: colors.navy,
+    marginBottom: 4,
+  },
+  sectionSubtitle: {
+    fontSize: 12,
+    color: colors.textSecondary,
     marginBottom: spacing.md,
+    lineHeight: 16,
+  },
+  docInputCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: radius.md,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  docInputHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  docIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.md,
+    backgroundColor: '#EEF2FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+  },
+  docInputTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.navy,
+  },
+  docInputSub: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginTop: 1,
+  },
+  docStatusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.pill,
+  },
+  docStatusBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  uploadDocRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#DCFCE7',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: radius.sm,
+    marginTop: 4,
+  },
+  uploadedDocName: {
+    flex: 1,
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#15803D',
   },
   fieldLabel: {
     fontSize: 13,

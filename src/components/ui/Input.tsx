@@ -22,7 +22,7 @@ export function Input({
 }: InputProps) {
   return (
     <View style={[styles.container, containerStyle]}>
-      {label && <Text style={styles.label}>{label}</Text>}
+      {!!label && <Text style={styles.label}>{label}</Text>}
       <TextInput
         style={[
           styles.input,
@@ -34,7 +34,7 @@ export function Input({
         editable={!disabled}
         {...props}
       />
-      {error && <Text style={styles.errorText}>{error}</Text>}
+      {!!error && <Text style={styles.errorText}>{error}</Text>}
     </View>
   );
 }

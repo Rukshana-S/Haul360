@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  TextInput,
+  Modal,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -32,7 +34,13 @@ export default function DriverBreakdownStatusScreen() {
     currentDriverUser,
     breakdowns,
     resumeTripAfterBreakdown,
+    rateMechanicService,
   } = useTransportOffice();
+
+  const [showRateModal, setShowRateModal] = useState(false);
+  const [selectedRating, setSelectedRating] = useState(5);
+  const [ratingComment, setRatingComment] = useState('');
+  const [ratingSuccessMsg, setRatingSuccessMsg] = useState<string | null>(null);
 
   const handleBack = () => {
     if (router.canGoBack()) {
@@ -71,6 +79,18 @@ export default function DriverBreakdownStatusScreen() {
   const handleResumeTrip = () => {
     resumeTripAfterBreakdown(incident.id);
     router.replace('/office-driver/trips/current' as any);
+  };
+
+  const handleSubmitRating = () => {
+    if (selectedRating < 1 || selectedRating > 5) return;
+    const res = rateMechanicService(incident.id, selectedRating, ratingComment.trim());
+    if (res.success) {
+      setRatingSuccessMsg('Mechanic Rated Successfully');
+      setTimeout(() => {
+        setRatingSuccessMsg(null);
+        setShowRateModal(false);
+      }, 900);
+    }
   };
 
   return (
@@ -232,6 +252,57 @@ export default function DriverBreakdownStatusScreen() {
           </View>
         </View>
 
+        {/* MECHANIC RATING SECTION (ONLY AFTER COMPLETED / REPAIRED / RESOLVED) */}
+        {isRepaired && (
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>Mechanic Service Rating</Text>
+              {incident.driverRated && (
+                <View style={styles.ratedBadge}>
+                  <Ionicons name="checkmark-circle" size={12} color="#15803D" style={{ marginRight: 4 }} />
+                  <Text style={styles.ratedBadgeText}>Rated</Text>
+                </View>
+              )}
+            </View>
+
+            {incident.driverRated ? (
+              <View style={styles.ratedSummaryBox}>
+                <View style={styles.starsDisplayRow}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Ionicons
+                      key={star}
+                      name={star <= (incident.driverRating || 5) ? 'star' : 'star-outline'}
+                      size={20}
+                      color="#F59E0B"
+                    />
+                  ))}
+                  <Text style={styles.ratedScoreText}>{incident.driverRating || 5}/5</Text>
+                </View>
+                {!!incident.driverComment && (
+                  <Text style={styles.ratedCommentText}>"{incident.driverComment}"</Text>
+                )}
+                <Text style={styles.ratedMechanicLabel}>
+                  Attending Technician: {incident.assignedMechanicName || 'Suresh Kumar'}
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.unratedBox}>
+                <Text style={styles.unratedText}>
+                  Repair completed by {incident.assignedMechanicName || 'Suresh Kumar'}. Share your feedback on the roadside service.
+                </Text>
+                <TouchableOpacity
+                  style={styles.rateMechBtn}
+                  onPress={() => setShowRateModal(true)}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="star" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+                  <Text style={styles.rateMechBtnText}>Rate Mechanic</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        )}
+
         {/* RESUME TRIP ACTION WHEN REPAIRED OR REPLACED */}
         {isRepaired ? (
           <Button
@@ -248,6 +319,90 @@ export default function DriverBreakdownStatusScreen() {
           />
         )}
       </ScrollView>
+
+      {/* RATE MECHANIC MODAL */}
+      <Modal
+        visible={showRateModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowRateModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Rate Mechanic</Text>
+              <TouchableOpacity onPress={() => setShowRateModal(false)}>
+                <Ionicons name="close-circle" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Mechanic Summary */}
+              <View style={styles.modalMechSummary}>
+                <View style={styles.modalMechIcon}>
+                  <Ionicons name="construct" size={24} color={colors.navy} />
+                </View>
+                <View style={{ flex: 1, marginLeft: spacing.sm }}>
+                  <Text style={styles.modalMechName}>
+                    {incident.assignedMechanicName || 'Suresh Kumar'}
+                  </Text>
+                  <Text style={styles.modalMechSub}>
+                    Shipment: #{incident.shipmentId} • Service: {incident.issueType}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Star Rating Selection */}
+              <Text style={styles.starQuestion}>How was the service?</Text>
+              <View style={styles.starsPickerRow}>
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <TouchableOpacity
+                    key={star}
+                    onPress={() => setSelectedRating(star)}
+                    style={styles.starTouchItem}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name={star <= selectedRating ? 'star' : 'star-outline'}
+                      size={36}
+                      color="#F59E0B"
+                    />
+                    <Text style={styles.starNumberLabel}>{star}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Comment Field */}
+              <Text style={styles.commentLabel}>Comment (Optional)</Text>
+              <TextInput
+                style={styles.commentInput}
+                placeholder="Write your feedback (e.g. Quick response and excellent repair)"
+                placeholderTextColor="#94A3B8"
+                multiline
+                numberOfLines={3}
+                value={ratingComment}
+                onChangeText={setRatingComment}
+              />
+
+              {ratingSuccessMsg && (
+                <View style={styles.ratingSuccessBox}>
+                  <Ionicons name="checkmark-circle" size={16} color="#15803D" style={{ marginRight: 6 }} />
+                  <Text style={styles.ratingSuccessText}>{ratingSuccessMsg}</Text>
+                </View>
+              )}
+
+              {/* Submit Button */}
+              <TouchableOpacity
+                style={styles.submitRatingBtn}
+                onPress={handleSubmitRating}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.submitRatingBtnText}>Submit Rating</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </Screen>
   );
 }
@@ -358,6 +513,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     color: colors.navy,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
@@ -523,5 +683,190 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: colors.navy,
     marginTop: spacing.md,
+  },
+
+  // Rating Styles
+  ratedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.pill,
+  },
+  ratedBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#15803D',
+  },
+  ratedSummaryBox: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: radius.md,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  starsDisplayRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 6,
+  },
+  ratedScoreText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: colors.navy,
+    marginLeft: 6,
+  },
+  ratedCommentText: {
+    fontSize: 12,
+    color: colors.navy,
+    fontStyle: 'italic',
+    marginBottom: 6,
+  },
+  ratedMechanicLabel: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  unratedBox: {
+    paddingVertical: 4,
+  },
+  unratedText: {
+    fontSize: 12,
+    color: '#64748B',
+    lineHeight: 16,
+    marginBottom: 10,
+  },
+  rateMechBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.navy,
+    borderRadius: radius.md,
+    paddingVertical: 12,
+  },
+  rateMechBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+
+  // Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: spacing.lg,
+    maxHeight: '85%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: colors.navy,
+  },
+  modalMechSummary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: radius.md,
+    padding: spacing.sm,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: spacing.md,
+  },
+  modalMechIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#EEF2FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalMechName: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: colors.navy,
+  },
+  modalMechSub: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  starQuestion: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.navy,
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  starsPickerRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 12,
+    marginBottom: spacing.md,
+  },
+  starTouchItem: {
+    alignItems: 'center',
+  },
+  starNumberLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#64748B',
+    marginTop: 2,
+  },
+  commentLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.navy,
+    marginBottom: 6,
+  },
+  commentInput: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    padding: spacing.sm,
+    fontSize: 13,
+    color: colors.navy,
+    textAlignVertical: 'top',
+    minHeight: 70,
+    marginBottom: spacing.md,
+  },
+  ratingSuccessBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#DCFCE7',
+    padding: spacing.sm,
+    borderRadius: radius.md,
+    marginBottom: spacing.md,
+  },
+  ratingSuccessText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#15803D',
+  },
+  submitRatingBtn: {
+    backgroundColor: colors.navy,
+    borderRadius: radius.md,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  submitRatingBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });

@@ -17,6 +17,7 @@ import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
 import { useTransportOffice } from '@/context/TransportOfficeContext';
 import { ShipmentTimeline } from '@/components/ui/ShipmentTimeline';
+import { ShipmentRouteMap } from '@/components/ui/ShipmentRouteMap';
 
 export default function DriverCurrentTripScreen() {
   const {
@@ -25,6 +26,7 @@ export default function DriverCurrentTripScreen() {
     vehicles,
     startTrip,
     advanceTripStage,
+    advanceShipmentTrackingStep,
     breakdowns,
   } = useTransportOffice();
 
@@ -186,33 +188,22 @@ export default function DriverCurrentTripScreen() {
           </View>
         </View>
 
-        {/* INTERACTIVE TIMELINE */}
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Live Transit Milestones</Text>
-          <ShipmentTimeline
-            status={activeTrip.status}
-            assignedDriverName={currentDriverUser?.name}
-            assignedVehicleNumber={assignedVehicle?.vehicleNumber}
-            createdAt={activeTrip.createdAt}
-            expectedDelivery={activeTrip.expectedDelivery}
-          />
-        </View>
-
-        {/* PROGRESS TRIP ACTION BUTTON */}
-        {actionConfig && (
-          <Button
-            title={actionConfig.title}
-            onPress={actionConfig.onPress}
-            style={styles.progressBtn}
-          />
-        )}
+        {/* LIVE SIMULATED MAP & SYNCHRONIZED STATUS TIMELINE */}
+        <ShipmentRouteMap
+          shipment={activeTrip}
+          driverName={currentDriverUser?.name}
+          vehicleNumber={assignedVehicle?.vehicleNumber}
+          canAdvanceStatus={true}
+          onAdvanceStatus={() => advanceShipmentTrackingStep(activeTrip.id)}
+          isDriverView={true}
+        />
 
         {/* EMERGENCY SOS / BREAKDOWN BUTTON */}
         <TouchableOpacity
           style={styles.sosEmergencyBtn}
           onPress={() => router.push('/office-driver/breakdown/create' as any)}
         >
-          <Ionicons name="warning" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+          <Ionicons name="warning-outline" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
           <Text style={styles.sosEmergencyBtnText}>Report Emergency / Breakdown (SOS)</Text>
         </TouchableOpacity>
       </ScrollView>

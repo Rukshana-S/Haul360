@@ -30,9 +30,28 @@ export default function AddDriverScreen() {
   const [age, setAge] = useState('');
   const [address, setAddress] = useState('');
 
-  // Step 2: Document info
+  // Step 2: Document info (Aadhaar, DL, PAN)
+  const [aadhaarNumber, setAadhaarNumber] = useState('');
+  const [aadhaarDoc, setAadhaarDoc] = useState<{ name: string; size: string; status: 'PENDING' | 'VERIFIED' | 'REJECTED' | 'EXPIRING' } | null>({
+    name: 'Driver_Aadhaar_Card.pdf',
+    size: '1.2 MB',
+    status: 'VERIFIED',
+  });
+
   const [licenseNumber, setLicenseNumber] = useState('');
   const [licenseExpiry, setLicenseExpiry] = useState('2029-12-31');
+  const [licenseDoc, setLicenseDoc] = useState<{ name: string; size: string; status: 'PENDING' | 'VERIFIED' | 'REJECTED' | 'EXPIRING' } | null>({
+    name: 'Commercial_DL_Smartcard.pdf',
+    size: '1.8 MB',
+    status: 'VERIFIED',
+  });
+
+  const [panNumber, setPanNumber] = useState('');
+  const [panDoc, setPanDoc] = useState<{ name: string; size: string; status: 'PENDING' | 'VERIFIED' | 'REJECTED' | 'EXPIRING' } | null>({
+    name: 'Driver_PAN_Card.pdf',
+    size: '980 KB',
+    status: 'VERIFIED',
+  });
 
   // Step 3: Generated credentials
   const [generatedDriverId, setGeneratedDriverId] = useState('');
@@ -48,8 +67,13 @@ export default function AddDriverScreen() {
     setEmail('');
     setAge('');
     setAddress('');
+    setAadhaarNumber('');
+    setAadhaarDoc({ name: 'Driver_Aadhaar_Card.pdf', size: '1.2 MB', status: 'VERIFIED' });
     setLicenseNumber('');
     setLicenseExpiry('2029-12-31');
+    setLicenseDoc({ name: 'Commercial_DL_Smartcard.pdf', size: '1.8 MB', status: 'VERIFIED' });
+    setPanNumber('');
+    setPanDoc({ name: 'Driver_PAN_Card.pdf', size: '980 KB', status: 'VERIFIED' });
     setGeneratedDriverId('');
     setGeneratedTempPassword('');
     setCopiedField(null);
@@ -82,8 +106,17 @@ export default function AddDriverScreen() {
 
   const validateStep2 = () => {
     const errs: Record<string, string> = {};
-    const cleanLicense = licenseNumber.trim().toUpperCase();
 
+    // 1. Aadhaar
+    const cleanAadhaar = aadhaarNumber.replace(/\D/g, '');
+    if (!cleanAadhaar) {
+      errs.aadhaarNumber = 'Driver 12-digit Aadhaar number is required';
+    } else if (cleanAadhaar.length !== 12) {
+      errs.aadhaarNumber = 'Aadhaar must be exactly 12 digits';
+    }
+
+    // 2. Driving License
+    const cleanLicense = licenseNumber.trim().toUpperCase();
     if (!cleanLicense) {
       errs.licenseNumber = 'Commercial Driving License Number is required';
     } else if (cleanLicense.length < 8) {
@@ -94,6 +127,14 @@ export default function AddDriverScreen() {
 
     if (!licenseExpiry.trim()) {
       errs.licenseExpiry = 'License validity date is required';
+    }
+
+    // 3. PAN Card
+    const cleanPan = panNumber.trim().toUpperCase();
+    if (!cleanPan) {
+      errs.panNumber = 'Driver PAN number is required';
+    } else if (cleanPan.length !== 10) {
+      errs.panNumber = 'PAN must be 10 characters (e.g. ABCDE1234F)';
     }
 
     setErrors(errs);
@@ -115,6 +156,11 @@ export default function AddDriverScreen() {
           address: address.trim(),
           licenseNumber: licenseNumber.toUpperCase().trim(),
           licenseExpiry: licenseExpiry.trim(),
+          licenseStatus: licenseDoc?.status || 'VERIFIED',
+          aadhaarNumber: aadhaarNumber.trim(),
+          aadhaarStatus: aadhaarDoc?.status || 'VERIFIED',
+          panNumber: panNumber.toUpperCase().trim(),
+          panStatus: panDoc?.status || 'VERIFIED',
           documentStatus: 'VERIFIED',
         });
 
@@ -266,42 +312,132 @@ export default function AddDriverScreen() {
           {/* STEP 2: DRIVER DOCUMENT INFORMATION */}
           {step === 2 && (
             <View style={styles.formSection}>
-              <Text style={styles.sectionTitle}>License & Compliance</Text>
+              <Text style={styles.sectionTitle}>Mandatory Driver Documents</Text>
+              <Text style={styles.sectionSubtitle}>
+                Provide 3 required compliance documents for driver onboarding (Aadhaar, DL & PAN).
+              </Text>
 
-              <Input
-                label="Commercial Driving License Number"
-                placeholder="e.g. TN-59-2015-0084321"
-                value={licenseNumber}
-                onChangeText={(val) => {
-                  setLicenseNumber(val);
-                  if (errors.licenseNumber) setErrors((prev) => ({ ...prev, licenseNumber: '' }));
-                }}
-                autoCapitalize="characters"
-                error={errors.licenseNumber}
-              />
-
-              <Input
-                label="License Validity Expiry"
-                placeholder="YYYY-MM-DD (e.g. 2029-12-31)"
-                value={licenseExpiry}
-                onChangeText={(val) => {
-                  setLicenseExpiry(val);
-                  if (errors.licenseExpiry) setErrors((prev) => ({ ...prev, licenseExpiry: '' }));
-                }}
-                error={errors.licenseExpiry}
-              />
-
-              <View style={styles.uploadCard}>
-                <View style={styles.uploadHeader}>
-                  <Ionicons name="document-text-outline" size={24} color={colors.navy} />
-                  <View style={{ flex: 1, marginLeft: spacing.sm }}>
-                    <Text style={styles.uploadTitle}>Driving License Scan / Photo</Text>
-                    <Text style={styles.uploadSubtitle}>Verification check verified</Text>
+              {/* 1. AADHAAR CARD */}
+              <View style={styles.docInputCard}>
+                <View style={styles.docInputHeader}>
+                  <View style={styles.docIconBox}>
+                    <Ionicons name="card-outline" size={20} color={colors.navy} />
                   </View>
-                  <Ionicons name="checkmark-circle" size={22} color={colors.green} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.docInputTitle}>1. Aadhaar Card *</Text>
+                    <Text style={styles.docInputSub}>12-digit Indian National Identity</Text>
+                  </View>
+                  <View style={[styles.docStatusBadge, { backgroundColor: '#DCFCE7' }]}>
+                    <Text style={[styles.docStatusBadgeText, { color: '#15803D' }]}>Status: Verified</Text>
+                  </View>
                 </View>
-                <View style={styles.uploadBadge}>
-                  <Text style={styles.uploadBadgeText}>DL FRONT & BACK ATTACHED</Text>
+
+                <Input
+                  label="Driver Aadhaar Number (12 digits) *"
+                  placeholder="XXXX XXXX XXXX"
+                  value={aadhaarNumber}
+                  onChangeText={(val) => {
+                    setAadhaarNumber(val);
+                    if (errors.aadhaarNumber) setErrors((prev) => ({ ...prev, aadhaarNumber: '' }));
+                  }}
+                  keyboardType="number-pad"
+                  maxLength={12}
+                  error={errors.aadhaarNumber}
+                  containerStyle={{ marginTop: spacing.sm }}
+                />
+
+                <View style={styles.uploadDocRow}>
+                  <Ionicons name="document-attach" size={16} color={colors.green} style={{ marginRight: 6 }} />
+                  <Text style={styles.uploadedDocName} numberOfLines={1}>
+                    {aadhaarDoc?.name || 'Driver_Aadhaar.pdf'} ({aadhaarDoc?.size || '1.2 MB'})
+                  </Text>
+                  <Ionicons name="checkmark-circle" size={16} color={colors.green} />
+                </View>
+              </View>
+
+              {/* 2. DRIVING LICENSE */}
+              <View style={[styles.docInputCard, { marginTop: spacing.md }]}>
+                <View style={styles.docInputHeader}>
+                  <View style={styles.docIconBox}>
+                    <Ionicons name="car-outline" size={20} color={colors.navy} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.docInputTitle}>2. Commercial Driving License *</Text>
+                    <Text style={styles.docInputSub}>Heavy / Commercial Vehicle Endorsement</Text>
+                  </View>
+                  <View style={[styles.docStatusBadge, { backgroundColor: '#DCFCE7' }]}>
+                    <Text style={[styles.docStatusBadgeText, { color: '#15803D' }]}>Status: Verified</Text>
+                  </View>
+                </View>
+
+                <Input
+                  label="DL Number *"
+                  placeholder="e.g. TN-59-2015-0084321"
+                  value={licenseNumber}
+                  onChangeText={(val) => {
+                    setLicenseNumber(val);
+                    if (errors.licenseNumber) setErrors((prev) => ({ ...prev, licenseNumber: '' }));
+                  }}
+                  autoCapitalize="characters"
+                  error={errors.licenseNumber}
+                  containerStyle={{ marginTop: spacing.sm }}
+                />
+
+                <Input
+                  label="License Validity Expiry *"
+                  placeholder="YYYY-MM-DD (e.g. 2029-12-31)"
+                  value={licenseExpiry}
+                  onChangeText={(val) => {
+                    setLicenseExpiry(val);
+                    if (errors.licenseExpiry) setErrors((prev) => ({ ...prev, licenseExpiry: '' }));
+                  }}
+                  error={errors.licenseExpiry}
+                />
+
+                <View style={styles.uploadDocRow}>
+                  <Ionicons name="document-attach" size={16} color={colors.green} style={{ marginRight: 6 }} />
+                  <Text style={styles.uploadedDocName} numberOfLines={1}>
+                    {licenseDoc?.name || 'DL_Smartcard.pdf'} ({licenseDoc?.size || '1.8 MB'})
+                  </Text>
+                  <Ionicons name="checkmark-circle" size={16} color={colors.green} />
+                </View>
+              </View>
+
+              {/* 3. PAN CARD */}
+              <View style={[styles.docInputCard, { marginTop: spacing.md }]}>
+                <View style={styles.docInputHeader}>
+                  <View style={styles.docIconBox}>
+                    <Ionicons name="receipt-outline" size={20} color={colors.navy} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.docInputTitle}>3. PAN Card *</Text>
+                    <Text style={styles.docInputSub}>Income Tax Department 10-char PAN</Text>
+                  </View>
+                  <View style={[styles.docStatusBadge, { backgroundColor: '#DCFCE7' }]}>
+                    <Text style={[styles.docStatusBadgeText, { color: '#15803D' }]}>Status: Verified</Text>
+                  </View>
+                </View>
+
+                <Input
+                  label="PAN Number (10 chars) *"
+                  placeholder="e.g. ABCDE1234F"
+                  value={panNumber}
+                  onChangeText={(val) => {
+                    setPanNumber(val.toUpperCase());
+                    if (errors.panNumber) setErrors((prev) => ({ ...prev, panNumber: '' }));
+                  }}
+                  autoCapitalize="characters"
+                  maxLength={10}
+                  error={errors.panNumber}
+                  containerStyle={{ marginTop: spacing.sm }}
+                />
+
+                <View style={styles.uploadDocRow}>
+                  <Ionicons name="document-attach" size={16} color={colors.green} style={{ marginRight: 6 }} />
+                  <Text style={styles.uploadedDocName} numberOfLines={1}>
+                    {panDoc?.name || 'Driver_PAN.pdf'} ({panDoc?.size || '980 KB'})
+                  </Text>
+                  <Ionicons name="checkmark-circle" size={16} color={colors.green} />
                 </View>
               </View>
 
@@ -498,7 +634,70 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: colors.navy,
+    marginBottom: 4,
+  },
+  sectionSubtitle: {
+    fontSize: 12,
+    color: colors.textSecondary,
     marginBottom: spacing.md,
+    lineHeight: 16,
+  },
+  docInputCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: radius.md,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  docInputHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  docIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.md,
+    backgroundColor: '#EEF2FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+  },
+  docInputTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.navy,
+  },
+  docInputSub: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginTop: 1,
+  },
+  docStatusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.pill,
+  },
+  docStatusBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  uploadDocRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#DCFCE7',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: radius.sm,
+    marginTop: 4,
+  },
+  uploadedDocName: {
+    flex: 1,
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#15803D',
   },
   uploadCard: {
     backgroundColor: '#F8FAFC',

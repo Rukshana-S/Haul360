@@ -257,7 +257,29 @@ export default function DriverAssignmentsInbox() {
 
             return (
               <View key={shipment.id} style={styles.assignmentCard}>
-                {/* CARD HEADER */}
+                {/* RETURN LOAD IDENTIFIER BANNER */}
+                {shipment.returnLoadForShipmentId && (
+                  <View style={styles.returnLoadCardBanner}>
+                    <Ionicons name="repeat" size={13} color="#1D4ED8" style={{ marginRight: 5 }} />
+                    <Text style={styles.returnLoadCardBannerText}>
+                      RETURN LOAD • REVERSE HAUL FOR #{shipment.returnLoadForShipmentId}
+                    </Text>
+                  </View>
+                )}
+
+                {/* ORGANIZATION & AMOUNT HEADER */}
+                <View style={styles.cardOrgHeader}>
+                  <View style={styles.orgTag}>
+                    <Ionicons name="business" size={12} color={colors.navy} style={{ marginRight: 4 }} />
+                    <Text style={styles.orgTagText}>{shipment.organizationName || 'ABC Exports'}</Text>
+                  </View>
+                  <View style={styles.amountWrap}>
+                    <Text style={styles.amountLabelMini}>Amount</Text>
+                    <Text style={styles.amountValueMini}>₹{(shipment.amount || 18500).toLocaleString('en-IN')}</Text>
+                  </View>
+                </View>
+
+                {/* CARD STATUS HEADER */}
                 <View style={styles.cardHeader}>
                   <View style={[styles.assignmentBadge, { backgroundColor: badge.bg }]}>
                     <Ionicons
@@ -330,9 +352,16 @@ export default function DriverAssignmentsInbox() {
                   </View>
 
                   <View style={styles.specRow}>
-                    <Text style={styles.specLabel}>Pickup / Delivery Time:</Text>
+                    <Text style={styles.specLabel}>Pickup Date & Time:</Text>
                     <Text style={styles.specValue}>
-                      {shipment.pickupTime} • ETA: {shipment.expectedDelivery}
+                      {shipment.pickupDate || 'Today'} • {shipment.pickupTime}
+                    </Text>
+                  </View>
+
+                  <View style={styles.specRow}>
+                    <Text style={styles.specLabel}>Delivery Deadline:</Text>
+                    <Text style={styles.specValue}>
+                      {shipment.deliveryDate || 'Tomorrow'} • ETA: {shipment.expectedDelivery}
                     </Text>
                   </View>
 
@@ -558,11 +587,59 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
     elevation: 2,
+    boxShadow: '0px 2px 4px rgba(15, 23, 42, 0.04)' as any,
+  },
+  returnLoadCardBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#DBEAFE',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: radius.xs,
+    marginBottom: spacing.xs,
+  },
+  returnLoadCardBannerText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#1D4ED8',
+    letterSpacing: 0.5,
+  },
+  cardOrgHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: spacing.xs,
+    marginBottom: spacing.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  orgTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EEF2FF',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.sm,
+  },
+  orgTagText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.navy,
+  },
+  amountWrap: {
+    alignItems: 'flex-end',
+  },
+  amountLabelMini: {
+    fontSize: 8,
+    fontWeight: '700',
+    color: '#64748B',
+    textTransform: 'uppercase',
+  },
+  amountValueMini: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#0F172A',
   },
   cardHeader: {
     flexDirection: 'row',

@@ -398,24 +398,38 @@ export default function LoginScreen() {
 
           <View style={styles.footer}>
             {displayRole === 'Driver' ? (
-              <View style={{ alignItems: 'center' }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={styles.footerText}>New Independent Driver? </Text>
-                  <TouchableOpacity onPress={() => router.push('/registration/driver-type' as any)}>
-                    <Text style={[styles.footerLink, { color: colors.blue, fontWeight: '700' }]}>
-                      Register as Independent Driver
-                    </Text>
-                  </TouchableOpacity>
-                </View>
+              <View style={styles.driverFooterContainer}>
+                <TouchableOpacity
+                  style={styles.registerPrimaryButton}
+                  onPress={() => router.push('/registration/driver' as any)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="person-add-outline" size={16} color="#92400E" style={{ marginRight: 6 }} />
+                  <Text style={styles.registerPrimaryButtonText}>Register as Independent Driver</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.officeDriverSecondaryButton}
+                  onPress={() => router.push('/auth/login?role=Office%20Driver' as any)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="business-outline" size={15} color={colors.textSecondary} style={{ marginRight: 6 }} />
+                  <Text style={styles.officeDriverSecondaryButtonText}>Login as Transport Office Driver</Text>
+                </TouchableOpacity>
               </View>
             ) : displayRole === 'Office Driver' ? (
-              <View style={{ alignItems: 'center' }}>
-                <Text style={[styles.footerText, { textAlign: 'center', marginBottom: 4 }]}>
-                  Office driver credentials are created and managed by your Transport Office.
+              <View style={styles.driverFooterContainer}>
+                <Text style={[styles.footerText, { textAlign: 'center', marginBottom: spacing.xs }]}>
+                  Office credentials are provided & managed by your Transport Office.
                 </Text>
-                <TouchableOpacity onPress={() => router.push('/registration/driver-type' as any)}>
-                  <Text style={[styles.footerLink, { color: colors.slate, fontSize: 13 }]}>
-                    Self-Employed? Register as Independent Driver →
+                <TouchableOpacity
+                  style={styles.officeDriverSecondaryButton}
+                  onPress={() => router.push('/auth/login?role=Driver' as any)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="car-sport-outline" size={15} color={colors.navy} style={{ marginRight: 6 }} />
+                  <Text style={[styles.officeDriverSecondaryButtonText, { color: colors.navy, fontWeight: '700' }]}>
+                    Login as Independent Driver →
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -705,5 +719,44 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: colors.navy,
     textDecorationLine: 'underline',
+  },
+  driverFooterContainer: {
+    width: '100%',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  registerPrimaryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: spacing.lg,
+    width: '100%',
+  },
+  registerPrimaryButtonText: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#92400E',
+  },
+  officeDriverSecondaryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: spacing.lg,
+    width: '100%',
+  },
+  officeDriverSecondaryButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.slate,
   },
 });

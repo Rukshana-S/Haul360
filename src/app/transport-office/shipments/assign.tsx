@@ -61,7 +61,14 @@ export default function AssignShipmentScreen() {
   const selectedDriver = drivers.find((d) => d.id === selectedDriverId);
   const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId);
 
+  const isAcceptedByOrg = targetShipment?.requestStatus === 'ACCEPTED';
+
   const handleConfirmAssignment = () => {
+    if (!isAcceptedByOrg) {
+      setErrorBanner('Assignment is locked. Waiting for organization approval.');
+      return;
+    }
+
     if (!selectedDriverId || !selectedVehicleId) {
       setErrorBanner('Please select both an eligible driver and a compliant vehicle asset.');
       return;
@@ -87,10 +94,20 @@ export default function AssignShipmentScreen() {
           </View>
           <Text style={styles.successTitle}>Assignment Dispatched</Text>
           <Text style={styles.successSubtitle}>
-            Shipment <Text style={{ fontWeight: 'bold', color: colors.navy }}>#{targetShipment.id}</Text> assigned to <Text style={{ fontWeight: 'bold', color: colors.navy }}>{selectedDriver?.name}</Text> with vehicle <Text style={{ fontWeight: 'bold', color: colors.navy }}>{selectedVehicle?.vehicleNumber}</Text>.
+            Shipment <Text style={{ fontWeight: 'bold', color: colors.navy }}>#{targetShipment.id}</Text> ({targetShipment.organizationName}) assigned to <Text style={{ fontWeight: 'bold', color: colors.navy }}>{selectedDriver?.name}</Text> with vehicle <Text style={{ fontWeight: 'bold', color: colors.navy }}>{selectedVehicle?.vehicleNumber}</Text>.
           </Text>
 
           <View style={styles.dispatchSummaryCard}>
+            <View style={styles.dispatchRow}>
+              <Text style={styles.dispatchLabel}>Organization</Text>
+              <Text style={styles.dispatchVal}>{targetShipment.organizationName || 'ABC Exports'}</Text>
+            </View>
+            <View style={styles.dispatchRow}>
+              <Text style={styles.dispatchLabel}>Shipment Amount</Text>
+              <Text style={[styles.dispatchVal, { fontWeight: 'bold', color: colors.navy }]}>
+                ₹{(targetShipment.amount || 18500).toLocaleString('en-IN')}
+              </Text>
+            </View>
             <View style={styles.dispatchRow}>
               <Text style={styles.dispatchLabel}>Status</Text>
               <Text style={[styles.dispatchVal, { color: colors.orange }]}>
@@ -145,14 +162,29 @@ export default function AssignShipmentScreen() {
           </View>
         )}
 
+        {/* ORGANIZATION APPROVAL LOCK BANNER */}
+        {!isAcceptedByOrg && (
+          <View style={styles.lockWarningBanner}>
+            <Ionicons name="lock-closed" size={20} color="#B45309" style={{ marginRight: 8 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.lockWarningTitle}>Waiting for Organization Approval</Text>
+              <Text style={styles.lockWarningSub}>
+                Assignment is locked because {targetShipment.organizationName} has not accepted this request yet (Current status: {targetShipment.requestStatus || 'NOT_REQUESTED'}).
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* STEP 1: SHIPMENT SUMMARY */}
         <View style={styles.shipmentSummaryCard}>
           <View style={styles.shipmentHeaderRow}>
-            <Text style={styles.shipmentId}>Shipment #{targetShipment.id}</Text>
-            <View style={styles.weightBadge}>
-              <Text style={styles.weightBadgeText}>
-                Cargo: {targetShipment.cargoWeightKg.toLocaleString()} KG
-              </Text>
+            <View>
+              <Text style={styles.orgTagText}>{targetShipment.organizationName || 'ABC Exports'}</Text>
+              <Text style={styles.shipmentId}>Shipment #{targetShipment.id}</Text>
+            </View>
+            <View style={styles.amountBoxRight}>
+              <Text style={styles.amountLabelSmall}>Amount</Text>
+              <Text style={styles.amountValueText}>₹{(targetShipment.amount || 18500).toLocaleString('en-IN')}</Text>
             </View>
           </View>
 
@@ -165,7 +197,7 @@ export default function AssignShipmentScreen() {
           </View>
 
           <View style={styles.cargoInfoRow}>
-            <Text style={styles.cargoType}>{targetShipment.cargoType}</Text>
+            <Text style={styles.cargoType}>{targetShipment.cargoType} ({targetShipment.cargoWeightKg.toLocaleString()} KG)</Text>
             <Text style={styles.minCapacityNote}>
               Required Min Capacity: {targetShipment.requiredCapacityKg.toLocaleString()} KG+
             </Text>
@@ -173,7 +205,7 @@ export default function AssignShipmentScreen() {
         </View>
 
         {/* STEP 2: SELECT DRIVER */}
-        <View style={styles.stepSection}>
+        <View style={[styles.stepSection, !isAcceptedByOrg && { opacity: 0.6 }]}>
           <View style={styles.stepHeaderRow}>
             <View style={styles.stepBadge}>
               <Text style={styles.stepBadgeText}>STEP 1</Text>
@@ -187,12 +219,14 @@ export default function AssignShipmentScreen() {
           <View style={styles.optionsList}>
             {drivers.map((driver) => {
               const isInactive = driver.isActive === false;
-              const isEligible = !isInactive && driver.availability === 'AVAILABLE';
+              const isEligible = isAcceptedByOrg && !isInactive && driver.availability === 'AVAILABLE';
               const isSelected = selectedDriverId === driver.id;
 
               let statusLabel = 'Available';
               let reason = '';
-              if (isInactive) {
+              if (!isAcceptedByOrg) {
+                reason = 'Locked — Waiting for Organization Approval';
+              } else if (isInactive) {
                 statusLabel = 'Inactive';
                 reason = 'Driver is inactive — Not selectable';
               } else if (driver.availability === 'BUSY') {
@@ -254,23 +288,13 @@ export default function AssignShipmentScreen() {
                       styles.eligibilityBadge,
                       isEligible
                         ? { backgroundColor: '#DCFCE7' }
-                        : isInactive
-                        ? { backgroundColor: '#F1F5F9' }
-                        : driver.availability === 'BUSY'
-                        ? { backgroundColor: '#FEF3C7' }
                         : { backgroundColor: '#F1F5F9' },
                     ]}
                   >
                     <Text
                       style={[
                         styles.eligibilityText,
-                        isEligible
-                          ? { color: '#15803D' }
-                          : isInactive
-                          ? { color: '#64748B' }
-                          : driver.availability === 'BUSY'
-                          ? { color: '#B45309' }
-                          : { color: '#64748B' },
+                        isEligible ? { color: '#15803D' } : { color: '#64748B' },
                       ]}
                     >
                       {isEligible ? 'Available ✓' : statusLabel}
@@ -283,7 +307,7 @@ export default function AssignShipmentScreen() {
         </View>
 
         {/* STEP 3: SELECT VEHICLE ASSET */}
-        <View style={styles.stepSection}>
+        <View style={[styles.stepSection, !isAcceptedByOrg && { opacity: 0.6 }]}>
           <View style={styles.stepHeaderRow}>
             <View style={styles.stepBadge}>
               <Text style={styles.stepBadgeText}>STEP 2</Text>
@@ -299,14 +323,16 @@ export default function AssignShipmentScreen() {
               const isInactive = vehicle.isActive === false;
               const hasCapacity = vehicle.capacityKg >= targetShipment.cargoWeightKg;
               const isAvailable = vehicle.status === 'AVAILABLE';
-              const isEligible = !isInactive && hasCapacity && isAvailable;
+              const isEligible = isAcceptedByOrg && !isInactive && hasCapacity && isAvailable;
               const isSelected = selectedVehicleId === vehicle.id;
 
               let reason = '';
-              if (isInactive) {
+              if (!isAcceptedByOrg) {
+                reason = 'Locked — Waiting for Organization Approval';
+              } else if (isInactive) {
                 reason = 'Vehicle is inactive — Not selectable';
               } else if (!hasCapacity) {
-                reason = `Capacity too low (${vehicle.capacityKg.toLocaleString()} KG < ${targetShipment.cargoWeightKg.toLocaleString()} KG)`;
+                reason = `Vehicle capacity insufficient (${vehicle.capacityKg.toLocaleString()} KG vs ${targetShipment.cargoWeightKg.toLocaleString()} KG required)`;
               } else if (!isAvailable) {
                 reason = vehicle.status === 'IN_TRIP' ? 'Currently In Trip' : vehicle.status === 'MAINTENANCE' ? 'In Maintenance' : 'Assigned';
               }
@@ -349,7 +375,9 @@ export default function AssignShipmentScreen() {
                         {vehicle.vehicleType} • Payload: {vehicle.capacityKg.toLocaleString()} KG
                       </Text>
                       {!isEligible && (
-                        <Text style={styles.ineligibleReasonText}>{reason}</Text>
+                        <Text style={[styles.ineligibleReasonText, !hasCapacity && { color: '#B91C1C', fontWeight: 'bold' }]}>
+                          {reason}
+                        </Text>
                       )}
                     </View>
                   </View>
@@ -368,7 +396,7 @@ export default function AssignShipmentScreen() {
                         isEligible ? { color: '#15803D' } : { color: '#B91C1C' },
                       ]}
                     >
-                      {isEligible ? 'Eligible' : isInactive ? 'Inactive' : 'Unavailable'}
+                      {isEligible ? 'Eligible ✓' : !hasCapacity ? 'Insufficient' : 'Unavailable'}
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -379,13 +407,13 @@ export default function AssignShipmentScreen() {
 
         {/* ASSIGN SUBMIT BUTTON */}
         <Button
-          title="Review & Confirm Assignment →"
-          disabled={!selectedDriverId || !selectedVehicleId}
+          title={isAcceptedByOrg ? "Review & Confirm Assignment →" : "Waiting for Organization Approval"}
+          disabled={!isAcceptedByOrg || !selectedDriverId || !selectedVehicleId}
           onPress={() => {
             setErrorBanner(null);
             setShowConfirmModal(true);
           }}
-          style={styles.reviewBtn}
+          style={[styles.reviewBtn, !isAcceptedByOrg && { backgroundColor: '#94A3B8' }]}
         />
       </ScrollView>
 
@@ -408,6 +436,16 @@ export default function AssignShipmentScreen() {
             </Text>
 
             <View style={styles.modalSummaryBox}>
+              <View style={styles.modalRow}>
+                <Text style={styles.modalLabel}>Organization:</Text>
+                <Text style={styles.modalVal}>{targetShipment.organizationName || 'ABC Exports'}</Text>
+              </View>
+              <View style={styles.modalRow}>
+                <Text style={styles.modalLabel}>Shipment Amount:</Text>
+                <Text style={[styles.modalVal, { fontWeight: 'bold', color: colors.navy }]}>
+                  ₹{(targetShipment.amount || 18500).toLocaleString('en-IN')}
+                </Text>
+              </View>
               <View style={styles.modalRow}>
                 <Text style={styles.modalLabel}>Route:</Text>
                 <Text style={styles.modalVal}>{targetShipment.origin} → {targetShipment.destination}</Text>
@@ -485,6 +523,27 @@ const styles = StyleSheet.create({
     color: '#991B1B',
     fontWeight: '500',
   },
+  lockWarningBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  lockWarningTitle: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#B45309',
+  },
+  lockWarningSub: {
+    fontSize: 11,
+    color: '#92400E',
+    marginTop: 2,
+    lineHeight: 16,
+  },
   shipmentSummaryCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: radius.lg,
@@ -499,10 +558,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.xs,
   },
+  orgTagText: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: colors.blue,
+    textTransform: 'uppercase',
+  },
   shipmentId: {
     fontSize: 16,
     fontWeight: 'bold',
     color: colors.navy,
+  },
+  amountBoxRight: {
+    alignItems: 'flex-end',
+  },
+  amountLabelSmall: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#64748B',
+    textTransform: 'uppercase',
+  },
+  amountValueText: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#0F172A',
   },
   weightBadge: {
     backgroundColor: '#EFF6FF',

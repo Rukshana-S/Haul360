@@ -22,12 +22,18 @@ export default function TransportOfficeNotificationsScreen() {
     switch (type) {
       case 'BREAKDOWN':
         return { name: 'warning' as const, color: '#DC2626', bg: '#FEE2E2' };
+      case 'FASTAG_LOW_BALANCE':
+        return { name: 'car' as const, color: '#D97706', bg: '#FEF3C7' };
       case 'ASSIGNMENT':
         return { name: 'cube' as const, color: colors.blue, bg: '#EFF6FF' };
       case 'MECHANIC':
         return { name: 'construct' as const, color: colors.orange, bg: '#FEF3C7' };
       case 'TRIP':
         return { name: 'navigate' as const, color: colors.green, bg: '#DCFCE7' };
+      case 'PAYMENT':
+        return { name: 'wallet' as const, color: colors.green, bg: '#DCFCE7' };
+      case 'REWARD':
+        return { name: 'trophy' as const, color: '#D97706', bg: '#FEF3C7' };
       default:
         return { name: 'information-circle' as const, color: colors.navy, bg: '#F1F5F9' };
     }
@@ -70,6 +76,8 @@ export default function TransportOfficeNotificationsScreen() {
                   markOfficeNotificationRead(notif.id);
                   if (notif.type === 'BREAKDOWN' && notif.targetId) {
                     router.push(`/transport-office/breakdowns/${notif.targetId}` as any);
+                  } else if (notif.type === 'FASTAG_LOW_BALANCE' && notif.targetId) {
+                    router.push(`/transport-office/vehicles/${notif.targetId}` as any);
                   } else if (notif.type === 'ASSIGNMENT' && notif.targetId) {
                     router.push(`/transport-office/shipments/${notif.targetId}` as any);
                   }

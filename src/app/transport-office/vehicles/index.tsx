@@ -207,6 +207,49 @@ export default function TransportOfficeVehiclesList() {
                   </View>
                 </View>
 
+                {/* FASTAG SUMMARY BADGE */}
+                {vehicle.fastag && (
+                  <View style={styles.fastagSummaryRow}>
+                    <View style={styles.fastagLeft}>
+                      <Ionicons name="car" size={14} color={colors.navy} style={{ marginRight: 6 }} />
+                      <Text style={styles.fastagSummaryLabel}>FASTag Balance:</Text>
+                      <Text style={[styles.fastagSummaryBalance, vehicle.fastag.status === 'LOW_BALANCE' && { color: '#DC2626' }]}>
+                        ₹{vehicle.fastag.balance.toLocaleString('en-IN')}
+                      </Text>
+                    </View>
+
+                    <View
+                      style={[
+                        styles.fastagBadgePill,
+                        {
+                          backgroundColor:
+                            vehicle.isActive === false
+                              ? '#F1F5F9'
+                              : vehicle.fastag.status === 'LOW_BALANCE'
+                              ? '#FEF3C7'
+                              : '#DCFCE7',
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.fastagBadgePillText,
+                          {
+                            color:
+                              vehicle.isActive === false
+                                ? '#64748B'
+                                : vehicle.fastag.status === 'LOW_BALANCE'
+                                ? '#B45309'
+                                : '#15803D',
+                          },
+                        ]}
+                      >
+                        {vehicle.isActive === false ? 'INACTIVE' : vehicle.fastag.status === 'LOW_BALANCE' ? 'LOW BALANCE' : 'ACTIVE'}
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
                 {/* CURRENT ASSIGNMENT */}
                 <View style={styles.assignmentBox}>
                   <View style={styles.assignmentRow}>
@@ -424,6 +467,41 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
     marginVertical: spacing.xs,
     gap: 4,
+  },
+  fastagSummaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    marginTop: spacing.xs,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  fastagLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  fastagSummaryLabel: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginRight: 4,
+  },
+  fastagSummaryBalance: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.navy,
+  },
+  fastagBadgePill: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+  },
+  fastagBadgePillText: {
+    fontSize: 9,
+    fontWeight: '800',
   },
   assignmentRow: {
     flexDirection: 'row',

@@ -12,40 +12,41 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/components/ui/Screen';
 import { Input } from '@/components/ui/Input';
-import { Button } from '@/components/ui/Button';
 import { colors } from '@/theme/colors';
-import { typography } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
 import { useTransportOffice } from '@/context/TransportOfficeContext';
 
-export default function EditTransportOfficeProfile() {
-  const { office, updateOfficeProfile } = useTransportOffice();
+export default function OfficeDriverEditProfileScreen() {
+  const { currentDriverUser, updateDriverProfile, office } = useTransportOffice();
+  const driver = currentDriverUser;
 
-  const [officeName, setOfficeName] = useState(office.name);
-  const [managerName, setManagerName] = useState(office.managerName);
-  const [phone, setPhone] = useState(office.phone);
-  const [email, setEmail] = useState(office.email);
-  const [address, setAddress] = useState(office.address);
-  const [city, setCity] = useState(office.city);
-  const [stateName, setStateName] = useState(office.state);
-  const [pincode, setPincode] = useState(office.pincode);
-  const [gstNumber, setGstNumber] = useState(office.gstNumber || '33AABCT1332L1Z5');
+  const [name, setName] = useState(driver?.name || 'Kumar S.');
+  const [phone, setPhone] = useState(driver?.phone || '9876543210');
+  const [email, setEmail] = useState(driver?.email || 'kumar.driver@haul360.com');
+  const [dateOfBirth, setDateOfBirth] = useState(driver?.dateOfBirth || '1992-05-14');
+  const [address, setAddress] = useState(driver?.address || '14, Cross Cut Road, Gandhipuram');
+  const [city, setCity] = useState(driver?.city || 'Coimbatore');
+  const [stateName, setStateName] = useState(driver?.state || 'Tamil Nadu');
+  const [pincode, setPincode] = useState(driver?.pincode || '641012');
+  const [licenseExpiry, setLicenseExpiry] = useState(driver?.licenseExpiry || '2028-11-20');
 
   const [isSaved, setIsSaved] = useState(false);
 
   const handleSave = () => {
-    updateOfficeProfile({
-      name: officeName.trim(),
-      managerName: managerName.trim(),
-      phone: phone.trim(),
-      email: email.trim(),
-      address: address.trim(),
-      city: city.trim(),
-      state: stateName.trim(),
-      pincode: pincode.trim(),
-      gstNumber: gstNumber.trim(),
-    });
+    if (driver) {
+      updateDriverProfile(driver.id, {
+        name: name.trim(),
+        phone: phone.trim(),
+        email: email.trim(),
+        dateOfBirth: dateOfBirth.trim(),
+        address: address.trim(),
+        city: city.trim(),
+        state: stateName.trim(),
+        pincode: pincode.trim(),
+        licenseExpiry: licenseExpiry.trim(),
+      });
+    }
     setIsSaved(true);
     setTimeout(() => {
       router.back();
@@ -71,7 +72,7 @@ export default function EditTransportOfficeProfile() {
             <TouchableOpacity onPress={handleCancel} style={styles.backButton}>
               <Ionicons name="arrow-back" size={24} color={colors.navy} />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Edit Office Profile</Text>
+            <Text style={styles.headerTitle}>Edit Driver Profile</Text>
             <View style={{ width: 24 }} />
           </View>
 
@@ -82,19 +83,51 @@ export default function EditTransportOfficeProfile() {
             </View>
           )}
 
+          {/* READ-ONLY / PROTECTED OPERATIONAL DATA */}
+          <View style={styles.protectedCard}>
+            <View style={styles.protectedHeaderRow}>
+              <Ionicons name="lock-closed" size={16} color={colors.navy} />
+              <Text style={styles.protectedHeaderTitle}>Protected Operational Info</Text>
+            </View>
+            <Text style={styles.protectedNotice}>
+              These fields are managed by your transport office dispatcher and cannot be edited.
+            </Text>
+
+            <View style={styles.protectedFieldRow}>
+              <Text style={styles.protectedLabel}>Transport Office:</Text>
+              <Text style={styles.protectedVal}>{office.name}</Text>
+            </View>
+
+            <View style={styles.protectedFieldRow}>
+              <Text style={styles.protectedLabel}>Driver ID:</Text>
+              <Text style={styles.protectedVal}>{driver?.id || 'H360-D-1042'}</Text>
+            </View>
+
+            <View style={styles.protectedFieldRow}>
+              <Text style={styles.protectedLabel}>Driver Status:</Text>
+              <View style={styles.badgePillGreen}>
+                <Text style={styles.badgePillGreenText}>
+                  {driver?.isActive !== false ? 'ACTIVE' : 'INACTIVE'}
+                </Text>
+              </View>
+            </View>
+
+            <View style={[styles.protectedFieldRow, { borderBottomWidth: 0 }]}>
+              <Text style={styles.protectedLabel}>Operational Availability:</Text>
+              <View style={styles.badgePillBlue}>
+                <Text style={styles.badgePillBlueText}>{driver?.availability || 'AVAILABLE'}</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* EDITABLE PERSONAL & CONTACT INFO */}
           <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Transport Office Details</Text>
+            <Text style={styles.sectionTitle}>Personal & Contact Details</Text>
 
             <Input
-              label="Office Name"
-              value={officeName}
-              onChangeText={setOfficeName}
-            />
-
-            <Input
-              label="Owner / Manager Name"
-              value={managerName}
-              onChangeText={setManagerName}
+              label="Full Name"
+              value={name}
+              onChangeText={setName}
             />
 
             <Input
@@ -105,7 +138,7 @@ export default function EditTransportOfficeProfile() {
             />
 
             <Input
-              label="Email"
+              label="Email Address"
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
@@ -113,7 +146,13 @@ export default function EditTransportOfficeProfile() {
             />
 
             <Input
-              label="Address"
+              label="Date of Birth (YYYY-MM-DD)"
+              value={dateOfBirth}
+              onChangeText={setDateOfBirth}
+            />
+
+            <Input
+              label="Residential Address"
               value={address}
               onChangeText={setAddress}
             />
@@ -136,13 +175,13 @@ export default function EditTransportOfficeProfile() {
             />
 
             <Input
-              label="GST Number"
-              value={gstNumber}
-              onChangeText={setGstNumber}
-              autoCapitalize="characters"
+              label="License Expiry Date (YYYY-MM-DD)"
+              value={licenseExpiry}
+              onChangeText={setLicenseExpiry}
             />
           </View>
 
+          {/* ACTION BUTTONS */}
           <View style={styles.btnRow}>
             <TouchableOpacity
               style={styles.cancelBtn}
@@ -203,6 +242,71 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: 'bold',
     color: colors.green,
+  },
+  protectedCard: {
+    backgroundColor: '#F1F5F9',
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    marginBottom: spacing.md,
+  },
+  protectedHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  protectedHeaderTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.navy,
+  },
+  protectedNotice: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
+    lineHeight: 15,
+  },
+  protectedFieldRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  protectedLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  protectedVal: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.navy,
+  },
+  badgePillGreen: {
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+  },
+  badgePillGreenText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#15803D',
+  },
+  badgePillBlue: {
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+  },
+  badgePillBlueText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#1D4ED8',
   },
   card: {
     backgroundColor: '#FFFFFF',

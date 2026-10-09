@@ -24,6 +24,8 @@ export default function TransportOfficeDashboard() {
     shipments,
     breakdowns,
     officeNotifications,
+    financials,
+    rewards,
   } = useTransportOffice();
 
   const activeShipments = shipments.filter(
@@ -38,7 +40,14 @@ export default function TransportOfficeDashboard() {
     (s) => s.status === 'DECLINED' || (!!s.declineReason && s.status === 'PENDING_ASSIGNMENT')
   );
 
-  const availableDriversCount = drivers.filter((d) => d.availability === 'AVAILABLE').length;
+  const availableDriversCount = drivers.filter((d) => d.availability === 'AVAILABLE' && d.isActive !== false).length;
+  const availableVehiclesCount = vehicles.filter((v) => v.status === 'AVAILABLE' && v.isActive !== false).length;
+  const pendingOrgRequestsCount = shipments.filter((s) => s.requestStatus === 'REQUEST_SENT').length;
+
+  const vehiclesWithFastag = vehicles.filter((v) => !!v.fastag);
+  const lowBalanceFastagsCount = vehiclesWithFastag.filter(
+    (v) => v.fastag?.status === 'LOW_BALANCE' || (v.fastag?.balance || 0) <= (v.fastag?.lowBalanceThreshold || 1000)
+  ).length;
 
   const activeBreakdowns = breakdowns.filter(
     (b) => b.status !== 'RESOLVED' && b.status !== 'REPAIRED'
@@ -107,7 +116,7 @@ export default function TransportOfficeDashboard() {
           <Text style={styles.welcomeName}>{office.managerName || office.name}</Text>
         </View>
 
-        {/* KEY STATS (2x2 Grid, Max 4) */}
+        {/* KEY STATS (Compact Grid) */}
         <View style={styles.statsGrid}>
           <TouchableOpacity
             style={styles.statCard}
@@ -127,10 +136,10 @@ export default function TransportOfficeDashboard() {
             onPress={() => router.push('/transport-office/shipments' as any)}
           >
             <View style={[styles.statIconCircle, { backgroundColor: '#FEF3C7' }]}>
-              <Ionicons name="time-outline" size={18} color={colors.orange} />
+              <Ionicons name="paper-plane-outline" size={18} color={colors.orange} />
             </View>
-            <Text style={styles.statValue}>{pendingShipments.length}</Text>
-            <Text style={styles.statLabel}>Pending Assignments</Text>
+            <Text style={styles.statValue}>{pendingOrgRequestsCount}</Text>
+            <Text style={styles.statLabel}>Org Requests Sent</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -146,35 +155,149 @@ export default function TransportOfficeDashboard() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.statCard, activeBreakdowns.length > 0 && styles.statCardAlert]}
+            style={styles.statCard}
             activeOpacity={0.8}
-            onPress={() => {
-              if (activeBreakdowns.length > 0) {
-                router.push(`/transport-office/breakdowns/${activeBreakdowns[0].id}` as any);
-              }
-            }}
+            onPress={() => router.push('/transport-office/vehicles' as any)}
           >
-            <View
-              style={[
-                styles.statIconCircle,
-                { backgroundColor: activeBreakdowns.length > 0 ? '#FEE2E2' : '#F1F5F9' },
-              ]}
-            >
-              <Ionicons
-                name="warning-outline"
-                size={18}
-                color={activeBreakdowns.length > 0 ? '#DC2626' : colors.textSecondary}
-              />
+            <View style={[styles.statIconCircle, { backgroundColor: '#F1F5F9' }]}>
+              <Ionicons name="bus-outline" size={18} color={colors.navy} />
             </View>
-            <Text
-              style={[
-                styles.statValue,
-                activeBreakdowns.length > 0 && { color: '#DC2626' },
-              ]}
-            >
-              {activeBreakdowns.length}
+            <Text style={styles.statValue}>{availableVehiclesCount}</Text>
+            <Text style={styles.statLabel}>Available Vehicles</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* QUICK ACTIONS (+ Add Driver, + Add Vehicle, Find Shipments) */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
+        </View>
+
+        <View style={styles.quickActionsRow}>
+          <TouchableOpacity
+            style={styles.quickActionButton}
+            activeOpacity={0.85}
+            onPress={() => router.push('/transport-office/drivers/add' as any)}
+          >
+            <View style={[styles.quickActionIcon, { backgroundColor: '#EFF6FF' }]}>
+              <Ionicons name="person-add" size={16} color={colors.blue} />
+            </View>
+            <Text style={styles.quickActionText}>+ Add Driver</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.quickActionButton}
+            activeOpacity={0.85}
+            onPress={() => router.push('/transport-office/vehicles/add' as any)}
+          >
+            <View style={[styles.quickActionIcon, { backgroundColor: '#FEF3C7' }]}>
+              <Ionicons name="bus" size={16} color={colors.orange} />
+            </View>
+            <Text style={styles.quickActionText}>+ Add Vehicle</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.quickActionButton}
+            activeOpacity={0.85}
+            onPress={() => router.push('/transport-office/shipments' as any)}
+          >
+            <View style={[styles.quickActionIcon, { backgroundColor: '#DCFCE7' }]}>
+              <Ionicons name="search" size={16} color={colors.green} />
+            </View>
+            <Text style={styles.quickActionText}>Find Shipments</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* FINANCIAL OVERVIEW & FLEET FASTAG / REWARDS */}
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionTitle}>Financial & Fleet Overview</Text>
+          <TouchableOpacity onPress={() => router.push('/transport-office/earnings' as any)}>
+            <Text style={styles.seeAllLink}>Details →</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* FINANCIAL OVERVIEW DUAL CARD */}
+        <View style={styles.financeOverviewRow}>
+          <TouchableOpacity
+            style={styles.financeCard}
+            activeOpacity={0.85}
+            onPress={() => router.push('/transport-office/earnings' as any)}
+          >
+            <View style={styles.financeIconCircle}>
+              <Ionicons name="trending-up" size={18} color={colors.green} />
+            </View>
+            <Text style={styles.financeCardLabel}>Total Earnings</Text>
+            <Text style={styles.financeCardAmount}>
+              ₹{financials.totalEarnings.toLocaleString('en-IN')}
             </Text>
-            <Text style={styles.statLabel}>Active Breakdowns</Text>
+            <Text style={styles.financeCardSub}>This Month: ₹{financials.thisMonthEarnings.toLocaleString('en-IN')}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.financeCard}
+            activeOpacity={0.85}
+            onPress={() => router.push('/transport-office/passbook' as any)}
+          >
+            <View style={[styles.financeIconCircle, { backgroundColor: '#EFF6FF' }]}>
+              <Ionicons name="wallet-outline" size={18} color={colors.blue} />
+            </View>
+            <Text style={styles.financeCardLabel}>Account Balance</Text>
+            <Text style={styles.financeCardAmount}>
+              ₹{financials.availableBalance.toLocaleString('en-IN')}
+            </Text>
+            <Text style={styles.financeCardSub}>Pending: ₹{financials.pendingEarnings.toLocaleString('en-IN')}</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* FASTAG & REWARDS DUAL SUMMARY CARDS */}
+        <View style={styles.summaryServicesRow}>
+          {/* FASTAG FLEET CARD */}
+          <TouchableOpacity
+            style={[styles.serviceSummaryCard, lowBalanceFastagsCount > 0 && styles.serviceSummaryCardWarn]}
+            activeOpacity={0.85}
+            onPress={() => router.push('/transport-office/fastag' as any)}
+          >
+            <View style={styles.serviceCardTop}>
+              <View style={[styles.serviceIconCircle, { backgroundColor: lowBalanceFastagsCount > 0 ? '#FEF3C7' : '#EFF6FF' }]}>
+                <Ionicons
+                  name="car"
+                  size={18}
+                  color={lowBalanceFastagsCount > 0 ? '#B45309' : colors.blue}
+                />
+              </View>
+              <View style={styles.serviceStatusPill}>
+                <Text style={styles.serviceStatusText}>
+                  {lowBalanceFastagsCount > 0 ? `${lowBalanceFastagsCount} Low Balance` : 'All Healthy'}
+                </Text>
+              </View>
+            </View>
+            <Text style={styles.serviceTitle}>FASTag Fleet</Text>
+            <Text style={styles.serviceSub}>{vehiclesWithFastag.length} Vehicles Configured</Text>
+            <View style={styles.serviceActionRow}>
+              <Text style={styles.serviceActionLink}>View FASTag →</Text>
+            </View>
+          </TouchableOpacity>
+
+          {/* REWARDS CARD */}
+          <TouchableOpacity
+            style={styles.serviceSummaryCard}
+            activeOpacity={0.85}
+            onPress={() => router.push('/transport-office/rewards' as any)}
+          >
+            <View style={styles.serviceCardTop}>
+              <View style={[styles.serviceIconCircle, { backgroundColor: '#FEF3C7' }]}>
+                <Ionicons name="trophy" size={18} color="#D97706" />
+              </View>
+              <View style={[styles.serviceStatusPill, { backgroundColor: '#FEF3C7' }]}>
+                <Text style={[styles.serviceStatusText, { color: '#B45309' }]}>
+                  {rewards.currentLevel} Tier
+                </Text>
+              </View>
+            </View>
+            <Text style={styles.serviceTitle}>Fleet Rewards</Text>
+            <Text style={styles.serviceSub}>{rewards.points.toLocaleString('en-IN')} Points Earned</Text>
+            <View style={styles.serviceActionRow}>
+              <Text style={styles.serviceActionLink}>View Rewards →</Text>
+            </View>
           </TouchableOpacity>
         </View>
 
@@ -230,12 +353,7 @@ export default function TransportOfficeDashboard() {
                 key={s.id}
                 style={styles.declinedAlertCard}
                 activeOpacity={0.85}
-                onPress={() =>
-                  router.push({
-                    pathname: '/transport-office/shipments/assign',
-                    params: { shipmentId: s.id },
-                  } as any)
-                }
+                onPress={() => router.push(`/transport-office/shipments/assign?shipmentId=${s.id}` as any)}
               >
                 <View style={styles.alertHeaderRow}>
                   <View style={[styles.alertBadge, { backgroundColor: '#FEE2E2' }]}>
@@ -262,12 +380,7 @@ export default function TransportOfficeDashboard() {
                 key={s.id}
                 style={styles.pendingAlertCard}
                 activeOpacity={0.85}
-                onPress={() =>
-                  router.push({
-                    pathname: '/transport-office/shipments/assign',
-                    params: { shipmentId: s.id },
-                  } as any)
-                }
+                onPress={() => router.push(`/transport-office/shipments/assign?shipmentId=${s.id}` as any)}
               >
                 <View style={styles.alertHeaderRow}>
                   <View style={[styles.alertBadge, { backgroundColor: '#FEF3C7' }]}>
@@ -773,5 +886,103 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: colors.navy,
+  },
+  financeOverviewRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  financeCard: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  financeIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#DCFCE7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs,
+  },
+  financeCardLabel: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  financeCardAmount: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.navy,
+    marginVertical: 2,
+  },
+  financeCardSub: {
+    fontSize: 10,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  summaryServicesRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  serviceSummaryCard: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  serviceSummaryCardWarn: {
+    borderColor: '#FDE68A',
+    backgroundColor: '#FFFDF5',
+  },
+  serviceCardTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  serviceIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  serviceStatusPill: {
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+  },
+  serviceStatusText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#15803D',
+  },
+  serviceTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.navy,
+  },
+  serviceSub: {
+    fontSize: 10,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  serviceActionRow: {
+    marginTop: spacing.xs,
+    paddingTop: 4,
+  },
+  serviceActionLink: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.blue,
   },
 });

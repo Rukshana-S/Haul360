@@ -30,10 +30,7 @@ export default function TransportOfficeLayout() {
           borderTopWidth: 1,
           borderTopColor: '#E2E8F0',
           elevation: 8,
-          shadowColor: '#000000',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.06,
-          shadowRadius: 4,
+          boxShadow: '0px -2px 4px rgba(0, 0, 0, 0.06)' as any,
           height: 58 + bottomInset,
           paddingBottom: bottomInset,
           paddingTop: 6,
@@ -110,6 +107,7 @@ export default function TransportOfficeLayout() {
       <Tabs.Screen name="drivers/[id]" options={{ href: null }} />
       <Tabs.Screen name="shipments/assign" options={{ href: null }} />
       <Tabs.Screen name="shipments/[id]" options={{ href: null }} />
+      <Tabs.Screen name="shipments/return-load" options={{ href: null }} />
       <Tabs.Screen name="vehicles/add" options={{ href: null }} />
       <Tabs.Screen name="vehicles/[id]" options={{ href: null }} />
       <Tabs.Screen name="breakdowns/index" options={{ href: null }} />
@@ -123,6 +121,10 @@ export default function TransportOfficeLayout() {
       <Tabs.Screen name="settings" options={{ href: null }} />
       <Tabs.Screen name="edit-profile" options={{ href: null }} />
       <Tabs.Screen name="change-password" options={{ href: null }} />
+      <Tabs.Screen name="earnings" options={{ href: null }} />
+      <Tabs.Screen name="passbook" options={{ href: null }} />
+      <Tabs.Screen name="rewards" options={{ href: null }} />
+      <Tabs.Screen name="fastag" options={{ href: null }} />
     </Tabs>
   );
 }
